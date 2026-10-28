@@ -11,6 +11,19 @@ parity, long-session stability and broad hardware support are still being tested
 [Current scope and known limitations](docs/NATIVE_LINUX_PORT.md) distinguish
 verified behavior from unfinished work.
 
+## Install
+
+Packaged preview builds are distributed through [GitHub Releases](https://github.com/EyeCrasher07/Pathmine/releases).
+Choose the JAR for your operating system, install Fabric for Minecraft Java
+1.21.1 and the matching Fabric API, and place both JARs in the instance's `mods/`
+directory. Use one Pathmine JAR per instance. Its native renderer and runtime
+resources are bundled and extracted on first launch. Any compatible launcher
+can run it. See [playing and troubleshooting](docs/PLAYING.md) for details.
+
+Linux x86_64 preview packages require glibc 2.36 or newer and a compatible
+NVIDIA Vulkan ray-tracing driver. Windows x86_64 uses the pinned NVIDIA runtime.
+Preview builds retain the experimental scope and limitations described above.
+
 ## Build
 
 Clone the source and pinned public renderer dependencies:
@@ -60,6 +73,17 @@ Distribution JARs are written to `build/distributions/`. Install a packaged JAR
 and the matching Fabric API into a Fabric 1.21.1 instance using your preferred
 launcher. The mod extracts its bundled native payload on first launch. Prism is
 used by the optional developer tools, not required by the mod.
+
+The `package-windows` workflow builds and verifies a Windows x64 distribution
+on `release/<version>` branches or `v<version>` tags and retains the JAR and
+its SHA-256 checksum as build artifacts. It can also be run manually with a
+version after the workflow reaches the default branch. Linux distribution
+builds must compile both the renderer and JNI bridge against the ABI baseline
+in `runtime/native/dependencies.lock.json`; a current-host JNI build alone
+does not establish that baseline. Verify the extracted payload with
+`runtime/native/check_runtime.py` before publishing it. Release assets are
+published after their package and platform checks, separately from source PR
+integration.
 
 ## Source layout
 
