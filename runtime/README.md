@@ -54,9 +54,9 @@ submodules from the root Pathmine checkout first. File Pathmine bugs in the
     - One-time system setup: run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned` in an elevated PowerShell prompt, then close and reopen any existing PowerShell prompts
 	
 4. To generate and build dxvk-remix project:
-    - Right Click on `dxvk-remix\build_dxvk_all_ninja.ps1` and select "Run with Powershell"
+    - Right Click on `Pathmine\runtime\build_dxvk_all_ninja.ps1` and select "Run with Powershell"
     - If that fails or has problems, run the build manually in a way you can read the errors:
-        - open a windows file explorer to the `dxvk-remix` folder
+        - open a windows file explorer to the `Pathmine\runtime` folder
         - remove only the generated configuration that failed, such as `_CompDebug_x64/`; remove `_vs/` as well only if the generated Visual Studio solution must be recreated
         - type `cmd` in the address bar to open a command line window in that folder.
         - copy and paste `powershell -command "& .\build_dxvk_all_ninja.ps1"` into the command line, then press enter
@@ -95,7 +95,7 @@ submodules from the root Pathmine checkout first. File Pathmine bugs in the
 Remix has support for profiling using the [Tracy](https://github.com/wolfpld/tracy) tool, specifically the [v0.8 release](https://github.com/wolfpld/tracy/releases/download/v0.8/Tracy-0.8.7z)
 
 To enable Tracy profiling:
-1. Open a command line window in a build folder (i.e. `dxvk-remix/_CompRelease_x64/`)
+1. Open a command line window in a build folder (i.e. `Pathmine/runtime/_CompRelease_x64/`)
 2. Run `meson --reconfigure -D enable_tracy=true`
 3. Rebuild dxvk-remix-nv
 

@@ -6,14 +6,9 @@ refactoring does not.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-The version in a release is the `mod_version` in `gradle.properties`, and it is
-also part of every mod file name.
+The version in a release is the `mod_version` in `gradle.properties`.
 
 ## Unreleased
-
-## 0.1.0 - 2026-10-23
-
-The first public release, a beta.
 
 ### Added
 

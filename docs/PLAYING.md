@@ -78,8 +78,8 @@ Microsoft account.
    already. In Prism this is Accounts, then Manage Accounts, then Add
    Microsoft.
 5. Start the game. In Prism, select the **Pathmine**
-   instance and press Launch. In the Microsoft launcher, select the **NVIDIA
-   Pathmine** profile and press Play.
+   instance and press Launch. In the Microsoft launcher, select the
+   **Pathmine** profile and press Play.
 
 ### Installing Without The Installer
 

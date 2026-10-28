@@ -238,8 +238,8 @@ In game, run `/rtx status`. It should report `Renderer Initialized: true` and
 `SDK Available: true`.
 In `logs/latest.log` in the game directory, the exact success message is
 `Pathmine renderer initialized successfully!`; there must be no
-`Failed to initialize RTX Remix` message. The similarly worded mod-entrypoint
-startup message with a capital `Renderer` is not proof of native initialization.
+`Failed to initialize RTX Remix` message. The mod-entrypoint startup message
+is not proof of native initialization.
 
 The baseline PBR textures are built into the mod JAR and load through Fabric's
 `fabric` resource pack, below user packs. No separate baseline pack needs

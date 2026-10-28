@@ -23,8 +23,9 @@ Paths in this table are relative to `rtxremix-java/`.
 | `native/include/remix_c.h` | C API header copied from the pinned runtime build |
 | `native/build_native.bat` | MSVC bridge build for Windows x64 or ARM64 |
 
-The bridge loads `d3d9.dll`, calls `remixapi_InitializeLibrary`, and forwards
-Java operations through the resulting C API interface. Java-side handles are
+The bridge loads the host runtime (`d3d9.dll` on Windows or `libremix.so` on
+Linux), calls `remixapi_InitializeLibrary`, and forwards Java operations
+through the resulting C API interface. Java-side handles are
 raw `long` values. Native methods that require direct `ByteBuffer`s must not
 receive heap buffers. Document buffer directness on every new JNI entry point.
 There is no JNA interface table.
@@ -32,12 +33,16 @@ There is no JNA interface table.
 ## Consumption By The Root Build
 
 The repository's root Gradle project compiles these Java sources directly with
-the mod and builds `remixbridge.dll`. There is no separate wrapper Java build
+the mod and builds the host JNI bridge. There is no separate wrapper Java build
 or example launcher. The mod is a consumer of the shim, not a dependency of it.
 
-Building requires Windows, a 64-bit JDK 21 with `JAVA_HOME` set to it, and
-Visual Studio C++ tools. Running also requires a supported NVIDIA RTX GPU and
-a runtime matching the copied C API header. The root paths are:
+For Linux build requirements, loader contracts and JNI tests, see the
+[native bridge guide](native/README.md); renderer setup is covered by the
+[native port guide](../docs/NATIVE_LINUX_PORT.md).
+
+The Windows workflow below requires a 64-bit JDK 21 with `JAVA_HOME` set to it
+and Visual Studio C++ tools. Running also requires a supported NVIDIA RTX GPU
+and a runtime matching the copied C API header. The Windows root paths are:
 
 | Path | Responsibility |
 |---|---|
@@ -90,7 +95,7 @@ local SDK workflows, and packaging.
    and JVM tests alone do not validate JNI compatibility. The published,
    pinned runtime must implement the API exposed by the header and facade.
 
-Repository-wide contribution rules and sign-off requirements are in
+Repository-wide contribution rules are in
 [CONTRIBUTING.md](../CONTRIBUTING.md). Agent guidance and JNI invariants are in
 [AGENTS.md](../AGENTS.md#integrated-jni-wrapper).
 

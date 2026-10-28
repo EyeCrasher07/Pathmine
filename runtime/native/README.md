@@ -227,18 +227,14 @@ module loading, type registration, property defaults and stage serialization.
 
 ## Minecraft API adapter components
 
-The adapter consumes the unchanged API 0.16 header from the matching Minecraft
-source checkout. CMake verifies its SHA-256 against the dependency lock. The
-header's types are isolated from the original API 0.6 types, including opaque
-handles. The public engine header is unchanged.
+The adapter consumes the unchanged API 0.16 header at
+`rtxremix-java/native/include/remix_c.h` in this repository. CMake verifies its
+SHA-256 against the dependency lock. The header's types are isolated from the
+original API 0.6 types, including opaque handles. The public engine header is
+unchanged.
 
-To include the adapter components in the renderer build:
-
-```sh
-cmake -S native -B _NativeRuntime \
-  -DREMIX_MINECRAFT_API_HEADER:FILEPATH="$minecraft_source/rtxremix-java/native/include/remix_c.h"
-cmake --build _NativeRuntime --parallel 4
-```
+The [complete renderer configuration](#renderer-component-build) above selects
+this header with `REMIX_MINECRAFT_API_HEADER` and includes the adapter components.
 
 `remix-api016-runtime` builds the C API library. Its 36-slot table implements
 the 28 calls used by Minecraft; unused legacy D3D9 and object-picking calls

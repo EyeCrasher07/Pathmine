@@ -257,24 +257,20 @@ in injection annotations. Remove the diagnostic flag and export afterwards.
 The suite covers JVM-side behavior and data contracts.
 
 It does not cross the JNI boundary and it does not render, so it cannot tell you
-that a change looks right. Two things follow. First, `test` still needs the C++
-toolchain, because every task that reaches `classes` builds the bridge and
-fetches and stages a missing runtime first. Second, a rendering change is not
-reviewed until someone has looked at it in a running game: build and launch it
-with `tools\rtx.bat launch`, and say in the pull request what you looked at and
-what you saw. Screenshots of the before and after, taken from the same
-position, are the most useful thing you can attach.
+that a change looks right. The platform-specific toolchain and staging
+requirements also apply to `test`; see the [Windows build guide](docs/GETTING_STARTED.md#other-commands)
+or [Linux build instructions](README.md#build).
+A rendering change is not reviewed until someone has looked at it in a
+running game. On Windows, build and launch with `tools\rtx.bat launch`.
+Say in the pull request what you looked at and what you saw. Screenshots of
+the before and after, taken from the same position, are the most useful thing
+you can attach.
 
-For wrapper changes, the same root Gradle workflow compiles the shim with its
-mod callers and builds the bridge into `build/native/{win64|arm64}/`.
-Visual Studio C++ tools and `JAVA_HOME` pointing to a 64-bit JDK 21 are
-required. Gradle fetches the pinned runtime automatically when it is missing.
-Use `.\tools\rtx.bat sdk local --path <runtime dir> --arch win64` for a local build,
-as described in [Getting Started](docs/GETTING_STARTED.md#get-a-runtime).
-Packman-managed runtimes in `remix-runtime/{win64|arm64}/` are junctions into
-the shared cache. Never copy bridge outputs into them or commit SDKs or native
-build outputs. Launch with `tools\rtx.bat launch` before requesting review on an
-API change: Java compilation alone does not validate native loading.
+For wrapper changes, follow the [shim build workflow](rtxremix-java/README.md#consumption-by-the-root-build)
+and its platform-specific requirements. Never copy bridge outputs into
+Packman-managed SDK directories or commit SDKs or native build outputs.
+Exercise native loading and rendering before requesting review on an API
+change: Java compilation alone does not validate native loading.
 
 The Python tooling has a separate check command:
 
@@ -301,13 +297,10 @@ Use the actual target branch instead of `main` if the change targets another
 branch. Keep machine-local choices in ignored `tools/config.local.json`; the
 shipped defaults pin the demo world and art pack and select no graphics preset.
 
-To build an installable release, run `.\gradlew.bat releaseArchive`. It runs
-`package` and `verifyPackageJar`, stages the verified JAR, which carries the
-runtime textures, with the installer scripts, installer documentation, and
-license notices under `build/release/`, and writes a ZIP with the same layout
-under `build/distributions/`. Use `-Parch=win64` or `-Parch=arm64` for one
-architecture; omitting it includes both. The baseline resource pack is built
-into the mod, so the archive has no `resourcepacks/`.
+To build an installable archive, use the
+[packaging workflow](docs/GETTING_STARTED.md#other-commands) and select the
+target platform. The [Linux build instructions](README.md#build) cover staging
+the native runtime before packaging.
 
 ### Visual Comparisons
 

@@ -169,7 +169,7 @@ clients the developer tools launch.
 
 | Property | Effect |
 |---|---|
-| `-Parch=win64` or `-Parch=arm64` | Build and package one architecture instead of both |
+| `-Parch=<target>` | Select a payload architecture; see [packaging targets](GETTING_STARTED.md#other-commands) |
 | `-PrtxPreset=<low|medium|high|ultra>` | Sets `rtxremix.preset`, which selects Remix's graphics tier for that session only |
 | `-PmcQuickPlayServer=<host:port>` | Join a server on launch |
 | `-PbenchmarkJfrPath=<file.jfr>` | Starts a JFR recording, sets `rtxremix.benchmark.jfrPath`, and turns Java phases on |
