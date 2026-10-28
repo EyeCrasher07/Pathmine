@@ -302,6 +302,14 @@ in `build/distributions/`. The same `-Parch` selection applies; omitting it on
 Windows includes both Windows architectures. Linux defaults to `linux64` for
 both packaging tasks. No separate baseline resource-pack directory is needed.
 
+The [`package-windows` workflow](../.github/workflows/package-windows.yml) runs
+`package -Parch=win64` on a native Windows runner for pushes to
+`release/<version>` branches or `v<version>` tags. It uses that version as
+`mod_version` and retains the JAR and `SHA256SUMS.txt` as build artifacts.
+After the workflow reaches the default branch, it can also be run manually
+with a version. These checks cover the build, tests and package contents;
+they do not exercise Minecraft or the Windows installer.
+
 ## Tooling And CI
 
 The Python CLI under `tools/` launches the mod and provides local world

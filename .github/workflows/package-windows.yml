@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-3.0-only
+name: package-windows
+
+on:
+  push:
+    branches: ['release/**']
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version, such as 0.1.0-alpha.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Select package version
+        shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          $Version = $env:REQUESTED_VERSION
+          if (-not $Version) {
+            $Version = $env:GITHUB_REF_NAME -replace '^release/', '' -replace '^v', ''
+          }
+          if ($Version -notmatch '^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$') {
+            throw 'Use a version such as 0.1.0-alpha.1'
+          }
+          "PATHMINE_VERSION=$Version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build and verify Windows x64 package
+        shell: pwsh
+        run: .\gradlew.bat package -Parch=win64 "-Pmod_version=$env:PATHMINE_VERSION" --console=plain
+      - name: Record package checksums
+        shell: pwsh
+        run: |
+          $Jars = @(Get-ChildItem -LiteralPath build/distributions -Filter '*.jar')
+          if ($Jars.Count -ne 1) { throw 'Expected exactly one distributable JAR' }
+          $Hash = (Get-FileHash -LiteralPath $Jars[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$Hash  $($Jars[0].Name)" | Set-Content -LiteralPath build/distributions/SHA256SUMS.txt -Encoding ascii
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pathmine-windows-x64
+          path: |
+            build/distributions/*.jar
+            build/distributions/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

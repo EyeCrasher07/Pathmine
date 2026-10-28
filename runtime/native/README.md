@@ -257,12 +257,15 @@ or modify their RPATH. Never install the core under the API library's name.
 
 ### Distribution build
 
-The release ABI ceilings are glibc 2.36, libstdc++ `GLIBCXX_3.4.30` and
-`CXXABI_1.3.13`, recorded in the dependency lock. Build the
-runtime, NRD, OpenUSD and oneTBB against that baseline. A build on a newer
+The release ABI ceilings are recorded in `linuxDistribution` in the
+[dependency lock](dependencies.lock.json). Build the runtime, JNI bridge, NRD,
+OpenUSD and oneTBB against that baseline. A build on a newer
 distribution may work locally while importing newer symbols that older hosts
 cannot supply. Shader compilers run on the build host; their generated SPIR-V
 does not depend on the target C library. The native dependency lock still applies.
+
+The mod's `package -Parch=linux64` task builds its JNI bridge on the packaging
+host, so run it in the baseline environment too.
 
 NRD's pinned DXC runs on a host with glibc 2.38 or newer. Generate its shader
 headers with the NRD command above, then compile its C++ library in the target

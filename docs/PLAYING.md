@@ -1,23 +1,28 @@
 # Playing
 
-This guide covers playing a packaged Windows build of Pathmine. Its installer
-sets up Java, Fabric, and the RTX Remix runtime for you.
+This guide covers playing Pathmine from a packaged preview JAR on Windows or
+native Linux.
 
 ## What You Need
 
-- Windows 10 or 11, x64 or ARM64.
 - Minecraft Java Edition 1.21.1, on a Microsoft account that owns the game.
-- A GeForce RTX 30-series or newer GPU with NVIDIA driver 616.92 or newer.
-- About 5 GB of free disk space while installing, for the downloaded archive,
-  the game, Java, and the unpacked runtime. About 3 GB stays in use afterwards.
-- An internet connection while the installer runs.
+- A 64-bit Java 21 runtime, Fabric Loader, and Fabric API for that game version.
+  The [Fabric metadata](../src/main/resources/fabric.mod.json) records the
+  Loader and Fabric API minimum versions.
+- For Windows: Windows 10 or 11 on x86_64, and a GeForce RTX 30-series or newer
+  GPU with NVIDIA driver 616.92 or newer.
+- For Linux: an x86_64 distribution meeting the `linuxDistribution` ABI
+  baseline in the [dependency lock](../runtime/native/dependencies.lock.json),
+  and an NVIDIA Vulkan ray-tracing driver. The runtime runs natively without Wine.
+- An internet connection to download the mod and game dependencies.
 - 16 GB of system memory is recommended.
 
-Java 21, Fabric, and the RTX Remix runtime are installed for you.
+The [native port guide](NATIVE_LINUX_PORT.md) records the tested Linux hardware
+and remaining compatibility and visual-parity limits.
 
 ## Before You Start
 
-This is a beta. The mod began as a technology showcase and was tuned against
+This is a preview. The mod began as a technology showcase and was tuned against
 one showcase world, built for this project by
 [BlockWorks](https://www.blockworks.uk/), so the places that world visits are
 where it looks and runs best. It ships with
@@ -35,68 +40,33 @@ fixed.
 
 ## Download
 
-Pathmine's first publication contains source, without a packaged binary
-release. Get the source from the
-[Pathmine repository](https://github.com/EyeCrasher07/Pathmine) and follow the
-[Windows build instructions](GETTING_STARTED.md) to create a `releaseArchive`,
-then extract it.
+See [Install](../README.md#install) for preview downloads and operating-system
+selection. Source builders can follow the [build guide](../README.md#build).
 
 ## Which Launcher
 
-The installer asks which Minecraft launcher to use, unless it finds Prism and
-no Microsoft launcher, when it uses Prism without asking. Both work. The
-difference is where the game lives.
-
-**Prism Launcher** is a free launcher built for modded Minecraft. The installer
-uses your existing Prism, or downloads its own portable copy if you have none,
-and creates a separate instance for the mod, so your existing game, worlds, and
-settings are untouched. Worlds you create in that instance are separate from
-the worlds in your normal launcher.
-
-**The Microsoft launcher** is the official launcher you already use. The
-installer adds a profile to it, and the mod shares the same game folder and the
-same worlds as your normal play.
-
-Prism is the recommended choice. Either way, you sign in with the same
-Microsoft account.
+Use any launcher that can run a Fabric instance with the requirements above.
+The optional Windows archive installer can configure Prism or the Microsoft
+launcher; its [installation guide](../packaging/INSTALL.md#detailed-installation)
+explains where each keeps the game, worlds, and settings.
 
 ## Install
 
-1. Extract the whole archive to a folder. Running the installer from inside the
-   zip file does not work.
-2. Double-click `install.bat`. Do not right-click and run it as administrator.
-   The installer writes to your own user folders and refuses to run elevated.
-3. The installer opens a menu and preselects the right action for what is
-   already on your machine: Install, Upgrade, or Repair. Press Enter to accept
-   it. Answer the launcher question described above. Upgrade and Repair keep
-   the launcher that already has the mod and do not ask; to use the other
-   launcher, choose Install instead.
-4. Open the launcher. A Prism the installer downloaded has no Start menu
-   entry: run `prismlauncher.exe` in
-   `%LOCALAPPDATA%\RtxRemixMinecraft\PrismLauncher\`, the path the installer
-   prints when it finishes. Sign in to your Microsoft account if you have not
-   already. In Prism this is Accounts, then Manage Accounts, then Add
-   Microsoft.
-5. Start the game. In Prism, select the **Pathmine**
-   instance and press Launch. In the Microsoft launcher, select the
-   **Pathmine** profile and press Play.
+For a Windows installer archive built from source, follow
+[packaging/INSTALL.md](../packaging/INSTALL.md#detailed-installation).
 
 ### Installing Without The Installer
 
-If you already run a Fabric instance for Minecraft 1.21.1 in a launcher of
-your choice, you can install the mod by hand. The instance needs Java 21,
-Fabric Loader 0.16.5 or newer, and Fabric API 0.116.10+1.21.1 or newer.
+Follow [Install](../README.md#install) to add the preview JAR to a Fabric
+instance in your launcher. A source-built Windows archive also carries its
+packaged JAR in `mods/`.
 
-1. Copy the JAR from the archive's `mods\` folder into the instance's `mods\`
-   folder. It carries the runtime and its textures and unpacks them into the
-   game folder on first launch.
-2. Optionally give the instance the JVM arguments the installer would set:
-   a 2 GB heap with G1GC, listed as `RECOMMENDED_JVM_ARGS` in
-   [`packaging/installer.ps1`](../packaging/installer.ps1).
+Optionally give the instance the JVM arguments the installer would set,
+listed as `RECOMMENDED_JVM_ARGS` in
+[`packaging/installer.ps1`](../packaging/installer.ps1).
 
-Upgrade, Repair, and Uninstall do not know about a manual install. To update,
-replace the JAR. To remove the mod, delete the JAR and the files it unpacked,
-which [packaging/INSTALL.md](../packaging/INSTALL.md#uninstall) lists.
+The archive installer's Upgrade, Repair, and Uninstall modes do not manage a
+manual install. See [Updating](#updating) and [Uninstalling](#uninstalling).
 
 ## First Launch
 
@@ -109,8 +79,8 @@ Once you are in a world, the renderer compiles shaders and draws nothing until
 it finishes. A dark, flat, or half-built scene right after is expected. Let it
 settle before judging the picture.
 
-The baseline PBR textures ship inside the mod JAR, so neither launcher needs
-a separate baseline pack enabled. User packs override the built-in baseline.
+The baseline PBR textures ship inside the mod JAR, so no separate baseline
+pack needs enabling. User packs override the built-in baseline.
 
 ## Check It Worked
 
@@ -159,7 +129,7 @@ place one on a server, the server needs the mod installed as well. On a server:
 
 ## Crash Reports And Privacy
 
-The mod itself collects no data. The RTX Remix runtime it carries can send
+The mod itself collects no data. On Windows, the RTX Remix runtime can send
 diagnostic data to NVIDIA, and its First Use Guide asks about it with two
 checkboxes, both on by default:
 
@@ -183,6 +153,8 @@ The runtime's
 [crash reporting documentation](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/main/documentation/SentryCrashReporting.md)
 has the details.
 
+The native Linux runtime is built with Sentry reporting disabled.
+
 ## Troubleshooting
 
 | Symptom | What to do |
@@ -190,16 +162,15 @@ has the details.
 | The scene is dark, flat, or half-built on first entering a world | Wait for shader compilation to settle before judging the picture. |
 | The first launch looks frozen before the window appears | The runtime may be unpacking after an install, update, or runtime restore. Hard drives take longer than SSDs. |
 | Blocks look flat or plastic, like paper cutouts | Baseline PBR textures ship with the mod. Disable extra resource packs to check whether one overrides those textures or sidecars. |
-| The game closes during startup, and `latest.log` says `NVIDIA driver is below the minimum supported by RTX Remix; closing Minecraft` | Update your NVIDIA driver from the NVIDIA app or <https://www.nvidia.com/en-us/drivers/>, then relaunch. The mod closes Minecraft when the driver is too old for the runtime. |
-| `/rtx status` reports `Renderer Initialized: false` | Look for `Failed to initialize Pathmine renderer` in `logs\latest.log` and read the error that follows. If it names a conf file, check that file; an existing file that fails to load is not automatically replaced. Include the logs when reporting the failure. |
-| On a laptop: the game runs but looks like ordinary Minecraft, or is extremely slow | The display is being driven by the built-in graphics chip. In Windows Settings, Display, Graphics, add `javaw.exe` and set it to High performance, then relaunch. |
-| Windows SmartScreen warns about the Prism Launcher download | Prism Launcher is open-source and is not signed by Microsoft. Choose More info, then Run anyway. You can also install it yourself from <https://prismlauncher.org>, start Prism once, then re-run `install.bat`, which detects it. |
+| On Windows, the game closes during startup, and `latest.log` says `NVIDIA driver is below the minimum supported by RTX Remix; closing Minecraft` | Update your NVIDIA driver from the NVIDIA app or <https://www.nvidia.com/en-us/drivers/>, then relaunch. The mod closes Minecraft when the driver is too old for the runtime. |
+| `/rtx status` reports `Renderer Initialized: false` | Look for `Failed to initialize Pathmine renderer` in `logs/latest.log` and read the error that follows. If it names a conf file, check that file; an existing file that fails to load is not automatically replaced. Include the logs when reporting the failure. |
+| On a Windows laptop: the game runs but looks like ordinary Minecraft, or is extremely slow | The display is being driven by the built-in graphics chip. In Windows Settings, Display, Graphics, add `javaw.exe` and set it to High performance, then relaunch. |
 | Very choppy at a high render distance | Lower Minecraft's render distance, or pick a lower tier in Options, RTX Remix Settings, RTX Remix Graphics Settings. |
-| The game will not start at all | Launch the **Pathmine** profile rather than a plain Minecraft one, and confirm the launcher is set to Java 21. |
+| The game will not start at all | Launch the Fabric instance containing the Pathmine JAR and Fabric API, and confirm the launcher is set to Java 21. |
 | A crash, a black screen, or wrong rendering with other mods installed | Remove the other mods and try again. Mods that change rendering or chunk loading are the likely conflict. If one mod turns out to be the cause, say which in your report. |
 
-If none of that helps, the log is the next thing to look at. It is at
-`logs\latest.log` inside the game folder:
+If none of that helps, open your instance's game folder in the launcher and
+read `logs/latest.log`. Windows archive installer defaults are:
 
 - Prism, when the installer downloaded a portable copy:
   `%LOCALAPPDATA%\RtxRemixMinecraft\PrismLauncher\instances\Pathmine\.minecraft\logs\latest.log`
@@ -207,7 +178,7 @@ If none of that helps, the log is the next thing to look at. It is at
   `%APPDATA%\PrismLauncher\instances\Pathmine\.minecraft\logs\latest.log`
 - Microsoft launcher: `%APPDATA%\.minecraft\logs\latest.log`
 
-Paste either path into the File Explorer address bar to open the folder.
+Paste the matching Windows path into the File Explorer address bar to open it.
 
 ## Reporting a Bug
 
@@ -215,7 +186,8 @@ Open an issue on the project's
 [issue tracker](https://github.com/EyeCrasher07/Pathmine/issues)
 for anything about the mod: what
 is in the world and how it looks, the settings screen, `/rtx` commands and
-keys, lighting profiles, the installer, and crashes. Denoiser, DLSS, or
+keys, lighting profiles, the native Linux port, the installer, and crashes.
+For Windows, denoiser, DLSS, or
 frame-generation artifacts, Remix's own menus (Alt+X and RTX Remix Graphics
 Settings), and anything that also happens in another RTX Remix game belong to
 the runtime. Report those on the
@@ -229,45 +201,42 @@ following:
 
 | What to include | Where to find it |
 |---|---|
-| The mod file name | The `mods\` folder in the game directory. The name ends in a build stamp, which identifies the exact build. |
-| Which launcher you used | Prism or Microsoft. |
-| Your GPU and driver version | The NVIDIA app, or `nvidia-smi` in a Command Prompt. |
-| Whether a laptop display is driven by the built-in graphics chip | Windows Settings, Display, Graphics. |
-| Your Windows architecture | Run `systeminfo \| findstr "System Type"`. It reports `x64-based PC` or `ARM64-based PC`. |
+| The mod file name | The `mods/` folder in the game directory. The name ends in a build stamp, which identifies the exact build. |
+| Which launcher you used | The launcher and instance you started. |
+| Your GPU and driver version | The NVIDIA app, or `nvidia-smi` in a terminal. |
+| Whether a laptop display is driven by the built-in graphics chip | On Windows, check Settings, Display, Graphics. |
+| Your operating system and architecture | Include the Linux distribution/version and `uname -m` output, or the Windows version and `systeminfo \| findstr "System Type"` output. |
 | Which resource packs are on | Options, Resource Packs. Material bugs depend on this. |
 | The output of `/rtx status` | Type it in chat and copy the lines. |
-| `latest.log` and `remix-dxvk.log` | `latest.log` is at the paths above, and `remix-dxvk.log` is in `rtx-remix\logs\` in the same game folder. Attach the files rather than pasting part of them. |
-| For a crash, the crash files | Zip whatever the game folder has of `crash\`, `crash-reports\`, and `hs_err_pid*.log`, and attach the zip. |
-| A screenshot of the problem | F2 saves one to the `screenshots\` folder. |
+| `latest.log` and `remix-dxvk.log` | `latest.log` is at the paths above, and `remix-dxvk.log` is in `rtx-remix/logs/` in the same game folder. Attach the files rather than pasting part of them. |
+| For a crash, the crash files | Zip whatever the game folder has of `crash/`, `crash-reports/`, and `hs_err_pid*.log`, and attach the zip. |
+| A screenshot of the problem | F2 saves one to the `screenshots/` folder. |
 | For a visual bug, a matching pair | Take the shot, type `/rtx off`, take a second shot from the same spot, then `/rtx on`. The pair shows what changed. |
 
 ## Updating
 
-Build an updated archive using the
-[Windows build instructions](GETTING_STARTED.md#other-commands), extract it,
-and run `install.bat` again. It
-preselects Upgrade, which updates the launcher that already has the mod; choose
-Install to use the other launcher. Your worlds, settings, and any lighting
-profiles you have edited are kept, and profiles added by the new release are
-placed beside them.
+Stop the game, download the updated preview JAR for your operating system
+through [Install](../README.md#install), and replace the old Pathmine JAR in
+the same instance. Keep only one Pathmine JAR installed. For a Windows archive
+installation, follow the [installer's update guide](../packaging/INSTALL.md#updating).
+Your worlds, settings, and any lighting profiles you have edited are kept,
+and profiles added by the new release are placed beside them.
 To restore a shipped profile's default, delete that profile file and relaunch.
-Missing shipped files under `rtx-remix\` and a missing `rtx.conf` return on
+Missing shipped files under `rtx-remix/` and a missing `rtx.conf` return on
 the next launch even when `.rtx-remix-version` matches. Existing profiles,
-including edited files, are never overwritten. Deleting `remix-sdk\` or its
-`d3d9.dll` also triggers recovery on the next launch. Deleting
-`.rtx-remix-version` forces full re-extraction of the runtime and `rtx.conf`,
-but still preserves existing profiles.
+including edited files, are never overwritten. Deleting `remix-sdk/` or its
+runtime library (`d3d9.dll` on Windows or `libremix.so` on Linux) also triggers
+recovery on the next launch. Deleting `.rtx-remix-version` forces full
+re-extraction of the runtime and `rtx.conf`, but still preserves existing profiles.
 
 ## Uninstalling
 
-Run `install.bat` and choose Uninstall. It removes the mod files, such as the
-mod, Fabric API, the runtime, and `rtx.conf`, and then offers to remove the
-Java, the Prism portable, and the Prism instance it installed for you. Basic
-uninstall leaves your worlds alone, along with any lighting profiles you
-authored under `rtx-remix\`. The optional Prism instance or portable cleanup
-deletes everything inside those directories, including worlds and authored
-profiles. The full manual file list is in
-[packaging/INSTALL.md](../packaging/INSTALL.md).
+For a manual install, remove the Pathmine JAR from the instance. The
+[uninstall file list](../packaging/INSTALL.md#uninstall) identifies the extracted
+runtime files and the worlds, settings, and authored profiles to preserve.
+That guide also covers uninstalling a Windows archive installation and its
+optional Prism cleanup, which deletes worlds and authored profiles inside
+the selected instance or portable directory.
 
 ## Going Further
 

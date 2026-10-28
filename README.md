@@ -11,6 +11,19 @@ parity, long-session stability and broad hardware support are still being tested
 [Current scope and known limitations](docs/NATIVE_LINUX_PORT.md) distinguish
 verified behavior from unfinished work.
 
+## Install
+
+Packaged preview builds are distributed through [GitHub Releases](https://github.com/EyeCrasher07/Pathmine/releases).
+Choose the JAR for your operating system, install Fabric for Minecraft Java
+1.21.1 and the matching Fabric API, and place both JARs in the instance's `mods/`
+directory. Use one Pathmine JAR per instance. Its native renderer and runtime
+resources are bundled and extracted on first launch. Any compatible launcher
+can run it. See [playing and troubleshooting](docs/PLAYING.md) for details.
+
+Preview downloads target Windows and Linux x86_64. See the player guide for
+[platform requirements](docs/PLAYING.md#what-you-need). Preview builds retain
+the experimental scope and limitations described above.
+
 ## Build
 
 Clone the source and pinned public renderer dependencies:
@@ -56,10 +69,14 @@ Packman. Its source base differs from the Linux port; see the dependency lock
 and port guide before making parity claims. Building the Windows renderer from
 source is described in [runtime/README.md](runtime/README.md).
 
-Distribution JARs are written to `build/distributions/`. Install a packaged JAR
-and the matching Fabric API into a Fabric 1.21.1 instance using your preferred
-launcher. The mod extracts its bundled native payload on first launch. Prism is
-used by the optional developer tools, not required by the mod.
+Distribution JARs are written to `build/distributions/`; follow [Install](#install)
+to use one. Prism is used by the optional developer tools, not required by the mod.
+
+The [Windows build guide](docs/GETTING_STARTED.md#other-commands) covers the
+`package-windows` workflow. Linux release builds and extracted-payload checks
+follow the [native distribution guide](runtime/native/README.md#distribution-build).
+Release assets are published after their package and platform checks,
+separately from source PR integration.
 
 ## Source layout
 

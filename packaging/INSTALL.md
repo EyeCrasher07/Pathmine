@@ -1,8 +1,9 @@
 # Pathmine
 
-Pathmine is currently published as source. Create a Windows installation
-archive using the
+This guide covers optional Windows installation archives built using the
 [build instructions](https://github.com/EyeCrasher07/Pathmine/blob/main/docs/GETTING_STARTED.md#other-commands).
+For preview JAR downloads and installation with any compatible launcher, see
+[Install](https://github.com/EyeCrasher07/Pathmine#install).
 
 This archive installs a Fabric mod that renders Minecraft Java Edition 1.21.1
 through NVIDIA RTX Remix. It sets up a launcher, Java,
@@ -50,15 +51,9 @@ Fabric, the mod, and the RTX Remix runtime for you.
 
 ## Notice
 
-This is a beta. The mod began as a technology showcase and was tuned against
-one showcase world, built for this project by BlockWorks
-(<https://www.blockworks.uk/>), so the places that world visits are where it
-looks and runs best. It ships with known issues, tracked at
-<https://github.com/EyeCrasher07/Pathmine/issues>, and there are
-bugs yet to be found. It has had limited testing alongside other
-mods, it targets Minecraft 1.21.1 only, and blocks, mobs, dimensions, and
-situations the showcase never reaches have had less care. When something
-breaks, report it (see below); that is how it gets fixed.
+Read the player guide's
+[preview scope and compatibility cautions](https://github.com/EyeCrasher07/Pathmine/blob/main/docs/PLAYING.md#before-you-start)
+before playing.
 
 ## What Is In This Archive
 
