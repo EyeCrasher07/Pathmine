@@ -547,6 +547,8 @@ tasks.register('compileNativeLinux64', Exec) {
     inputs.files fileTree('rtxremix-java/native') {
         include '**/*.cpp', '**/*.h', '**/CMakeLists.txt', '**/*.java'
     }
+    // CMake's JNI test classes compile the facade independently of Gradle's Java tasks.
+    inputs.files fileTree('rtxremix-java/src') { include '**/*.java' }
     outputs.file layout.buildDirectory.file('native/linux64/libremixbridge.so')
     commandLine 'cmake', '--build', file('build/native/linux64').absolutePath
 }

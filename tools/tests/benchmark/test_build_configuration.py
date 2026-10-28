@@ -191,6 +191,31 @@ def test_development_jvm_defaults_match_the_installer(gradle_project: GradleProj
     assert gradle_project.model["vmArgs"] == prism.installer_constant("RECOMMENDED_JVM_ARGS").split()
 
 
+def test_linux_facade_changes_invalidate_native_test_compilation(gradle_project: GradleProject):
+    project = gradle_project
+    facade = project.root / "rtxremix-java/src/com/nvidia/rtxremix/RemixAPI.java"
+    original = facade.read_bytes()
+
+    def compile_with(*, up_to_date: bool):
+        result = project.run(
+            "compileNativeLinux64",
+            "-Parch=linux64",
+            "-PpublicationTestNativeInputs",
+            f"-PpublicationTestPython={sys.executable}",
+        )
+        status = " UP-TO-DATE" if up_to_date else "\n"
+        assert f"> Task :compileNativeLinux64{status}" in result.stdout
+
+    try:
+        compile_with(up_to_date=False)
+        compile_with(up_to_date=True)
+        facade.write_bytes(original + b"\n")
+        compile_with(up_to_date=False)
+        compile_with(up_to_date=True)
+    finally:
+        facade.write_bytes(original)
+
+
 @pytest.mark.parametrize("task", ["compileNativeWin64", "compileNativeArm64"])
 def test_windows_native_headers_invalidate_compilation(gradle_project: GradleProject, task: str):
     project = gradle_project

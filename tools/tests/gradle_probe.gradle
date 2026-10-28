@@ -22,7 +22,7 @@ allprojects { project ->
             }
         }
         if (project.hasProperty('publicationTestNativeInputs')) {
-            ['compileNativeWin64', 'compileNativeArm64'].each { name ->
+            ['compileNativeWin64', 'compileNativeArm64', 'compileNativeLinux64'].each { name ->
                 def bridgeTask = tasks.named(name).get()
                 bridgeTask.enabled = true
                 bridgeTask.commandLine([project.property('publicationTestPython'), '-c', '''

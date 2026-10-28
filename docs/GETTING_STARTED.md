@@ -145,8 +145,8 @@ variant in the launcher cannot add instrumentation to a local release build.
 ## Checklist
 
 ```powershell
-git clone https://github.com/NVIDIAGameWorks/rtx-remix-minecraft.git
-cd rtx-remix-minecraft
+git clone --recurse-submodules https://github.com/EyeCrasher07/Pathmine.git
+cd Pathmine
 .\tools\rtx.bat prism signin
 .\tools\rtx.bat launch
 ```
@@ -160,7 +160,9 @@ by `tools\rtx.bat textures water-normals`. The build automatically fetches
 `rtx_remix_minecraft_runtime_textures` version `1.1.0` through Packman.
 
 The Java wrapper and JNI bridge are tracked under `rtxremix-java/` and arrive
-with the clone; no recursive checkout or hook setup is needed.
+with the clone. The recursive checkout also initializes the pinned renderer
+dependencies under `runtime/`; no Git hook setup is needed. For an existing
+clone, run `git submodule update --init --recursive` before building the renderer.
 
 `tools\rtx.bat launch` fetches a missing runtime and builds the mod and bridge
 with Gradle. It installs the mod, the pinned Fabric API, the runtime,

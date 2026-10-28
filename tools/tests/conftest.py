@@ -205,6 +205,7 @@ def gradle_project(tmp_path_factory: pytest.TempPathFactory) -> GradleProject:
         "rtxremix-java/native/remixbridge.cpp",
         "rtxremix-java/native/bridge_platform.h",
         "rtxremix-java/native/include/remix_c.h",
+        "rtxremix-java/src",
         "LICENSE",
         "LICENSES",
         "NOTICE",
