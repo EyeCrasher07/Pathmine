@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from conftest import FakeLauncher, real_client_launch
+from conftest import FakeLauncher, GradleProject, real_client_launch
 
 from rtx_tools import client
 from rtx_tools.benchmark import util
@@ -25,7 +25,7 @@ def test_default_game_directory_is_the_prism_instance():
     assert util.RUN_DIR == util.PROJECT_DIR / "run-prism" / "instances" / "rtx-remix-dev" / ".minecraft"
 
 
-def test_benchmark_jvm_args_mirror_build_gradle():
+def test_benchmark_jvm_args_mirror_build_gradle(gradle_project: GradleProject):
     args = client.benchmark_jvm_args(Path("C:/r/profile.jfr"), 6)
     assert args == [
         "-Drtxremix.benchmark.jfrPath=C:/r/profile.jfr",
@@ -34,13 +34,7 @@ def test_benchmark_jvm_args_mirror_build_gradle():
         "-XX:FlightRecorderOptions=stackdepth=256",
         "-XX:StartFlightRecording=name=rtx-benchmark,settings=profile,disk=true,dumponexit=false,maxsize=0",
     ]
-    gradle = (util.PROJECT_DIR / "build.gradle").read_text(encoding="utf-8")
-    for literal in (
-        "-Drtxremix.profile.javaPhases=true",
-        "-XX:FlightRecorderOptions=stackdepth=256",
-        "name=rtx-benchmark,settings=profile,disk=true,dumponexit=false,maxsize=0",
-    ):
-        assert literal in gradle
+    assert gradle_project.benchmark_model["vmArgs"] == gradle_project.model["vmArgs"] + args
 
 
 def test_preset_jvm_args():

@@ -346,6 +346,14 @@ must also be run explicitly. Hosted workflows use read-only permissions and no
 private NVIDIA infrastructure. GPU and gameplay checks remain local and must be
 described separately from hosted build/test results.
 
+Publication regression tests execute Gradle packaging, verification, release
+staging and development copies with synthetic SDK inputs. They compare resolved
+dependencies, generated Fabric metadata and configured JVM arguments with the
+launcher defaults. `NativeExtractorTest` exercises installation behavior;
+`test_prism_launcher.py` covers account requirements and the signed-in launch
+arguments. The guide test checks the registered Brigadier tree, and the Java
+boundary test compiles the wrapper with only JOML and the JDK on its classpath.
+
 Keep local settings, accounts, worlds, caches, runtime SDKs, diagnostic captures
 and agent reports outside the tracked tree. `tools/check_repository.py` checks
 the actual Git file list on pull requests. Do not remove source comments or

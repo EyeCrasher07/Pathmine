@@ -73,6 +73,12 @@ if(REMIX_BUILD_SHADERS)
   set(runtimeRoot "${CMAKE_CURRENT_SOURCE_DIR}/..")
   set(shaderRoot "${runtimeRoot}/src/dxvk/shaders")
   file(GLOB_RECURSE shaderSources CONFIGURE_DEPENDS "${shaderRoot}/*")
+  file(GLOB_RECURSE shaderVendorHeaders CONFIGURE_DEPENDS
+    "${runtimeRoot}/submodules/rtxdi/rtxdi-sdk/include/*"
+    "${runtimeRoot}/submodules/rtxcr/shaders/include/*"
+    "${runtimeRoot}/submodules/sharc/include/*"
+    "${runtimeRoot}/submodules/nrc/Include/*"
+    "${REMIX_NRD_SOURCE_DIR}/Shaders/Include/*")
   set(shaderOutput "${CMAKE_CURRENT_BINARY_DIR}/rtx_shaders")
   set(shaderCommand "${Python3_EXECUTABLE}" "${runtimeRoot}/scripts-common/compile_shaders.py"
       -glslang "${REMIX_GLSLANG}" -slangc "${REMIX_SLANGC}" -slang-library "${REMIX_SLANG_LIBRARY}"
@@ -95,9 +101,9 @@ if(REMIX_BUILD_SHADERS)
     BYPRODUCTS ${shaderByproducts}
     COMMAND ${shaderCommand}
     COMMAND "${CMAKE_COMMAND}" -E touch "${shaderOutput}/native-build.stamp"
-    DEPENDS ${shaderSources} "${runtimeRoot}/scripts-common/compile_shaders.py"
+    DEPENDS ${shaderSources} ${shaderVendorHeaders} "${runtimeRoot}/scripts-common/compile_shaders.py"
       "${runtimeRoot}/scripts-common/depfile.py" "${runtimeRoot}/scripts-common/shader_xxd.py"
-      "${REMIX_SLANGC}" "${REMIX_SLANG_LIBRARY}" VERBATIM)
+      "${REMIX_GLSLANG}" "${REMIX_SLANGC}" "${REMIX_SLANG_LIBRARY}" VERBATIM)
   add_custom_target(remix-rtx-shaders DEPENDS "${shaderOutput}/native-build.stamp")
   add_custom_command(OUTPUT "${shaderOutput}/native-validation.stamp"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/validate_shaders.py"
@@ -116,6 +122,8 @@ if(BUILD_TESTING)
   if(Python3_Interpreter_FOUND)
     add_test(NAME native-runtime-distribution-checker
       COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_check_runtime.py")
+    add_test(NAME native-shader-dependencies
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_shader_dependencies.py")
   endif()
   if(TARGET remix-api016-headers)
     add_executable(native-api016-header-test api016_header_test.cpp)

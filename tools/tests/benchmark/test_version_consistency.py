@@ -2,99 +2,40 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-import re
 import unittest
-from pathlib import Path
 
+from conftest import GradleProject
+
+from rtx_tools import prism
 from rtx_tools.benchmark import util
 
 REPO_ROOT = util.PROJECT_DIR
 
 
-def gradle_mod_version() -> str:
-    for line in (REPO_ROOT / "gradle.properties").read_text(encoding="utf-8").splitlines():
-        if line.startswith("mod_version="):
-            return line.split("=", 1)[1].strip()
-    raise AssertionError("gradle.properties has no mod_version")
-
-
-def gradle_dependency_version(group: str, artifact: str) -> str:
-    text = (REPO_ROOT / "build.gradle").read_text(encoding="utf-8")
-    match = re.search(rf'"{re.escape(group)}:{re.escape(artifact)}:([^\"]+)"', text)
-    if not match:
-        raise AssertionError(f"build.gradle has no {group}:{artifact} dependency")
-    return match.group(1)
-
-
-def powershell_literal(path: Path, variable: str) -> str:
-    text = path.read_text(encoding="utf-8")
-    match = re.search(rf"\${re.escape(variable)}\s*=\s*'([^']+)'", text)
-    if not match:
-        raise AssertionError(f"{path} has no ${variable} string assignment")
-    return match.group(1)
+def test_packaging_and_runtime_versions_match_gradle(gradle_project: GradleProject):
+    gradle_project.run("publicationTestModel", "processResources", "-Parch=win64")
+    model = gradle_project.read_model()
+    assert prism.installer_constant("APP_VERSION") == model["baseVersion"]
+    dependencies = {(entry["group"], entry["name"]): entry["version"] for entry in model["dependencies"]}
+    for coordinate, variable in (
+        (("com.mojang", "minecraft"), "MC_VERSION"),
+        (("net.fabricmc", "fabric-loader"), "FABRIC_LOADER_VER"),
+        (("net.fabricmc.fabric-api", "fabric-api"), "FABRIC_API_VERSION"),
+    ):
+        assert prism.installer_constant(variable) == dependencies[coordinate]
+    metadata = json.loads((gradle_project.root / "build/resources/main/fabric.mod.json").read_text(encoding="utf-8"))
+    assert metadata["version"] == model["version"]
+    assert metadata["depends"]["minecraft"] == dependencies["com.mojang", "minecraft"]
+    assert metadata["depends"]["fabricloader"] == ">=" + dependencies["net.fabricmc", "fabric-loader"]
+    assert metadata["depends"]["fabric-api"] == ">=" + dependencies["net.fabricmc.fabric-api", "fabric-api"]
 
 
 class VersionConsistencyTests(unittest.TestCase):
-    def test_packaging_version_defaults_match_gradle(self):
-        expected = gradle_mod_version()
-        self.assertEqual(
-            expected,
-            powershell_literal(REPO_ROOT / "packaging" / "installer.ps1", "script:APP_VERSION"),
-        )
-
-    def test_runtime_dependency_versions_match_gradle(self):
-        expected = {
-            "minecraft": gradle_dependency_version("com.mojang", "minecraft"),
-            "fabric_loader": gradle_dependency_version("net.fabricmc", "fabric-loader"),
-            "fabric_api": gradle_dependency_version("net.fabricmc.fabric-api", "fabric-api"),
-        }
-        installer = REPO_ROOT / "packaging" / "installer.ps1"
-
-        for path, variables in (
-            (
-                installer,
-                {
-                    "minecraft": "script:MC_VERSION",
-                    "fabric_loader": "script:FABRIC_LOADER_VER",
-                    "fabric_api": "script:FABRIC_API_VERSION",
-                },
-            ),
-        ):
-            with self.subTest(path=path):
-                for component, variable in variables.items():
-                    self.assertEqual(expected[component], powershell_literal(path, variable))
-
-    def test_runtime_code_does_not_hardcode_mod_version(self):
-        benchmark_controller = (
-            REPO_ROOT
-            / "src"
-            / "main"
-            / "java"
-            / "com"
-            / "nvidia"
-            / "rtxremix"
-            / "minecraft"
-            / "benchmark"
-            / "BenchmarkController.java"
-        ).read_text(encoding="utf-8")
-        mod_entrypoint = (
-            REPO_ROOT / "src" / "main" / "java" / "com" / "nvidia" / "rtxremix" / "minecraft" / "RtxRemixMod.java"
-        ).read_text(encoding="utf-8")
-        self.assertNotRegex(benchmark_controller, r'modVersion",\s*"\d+\.\d+\.\d+"')
-        self.assertNotRegex(mod_entrypoint, r"Renderer v\d+\.\d+\.\d+")
-
     def test_fabric_metadata_matches_repository_contract(self):
         metadata = json.loads(
             (REPO_ROOT / "src" / "main" / "resources" / "fabric.mod.json").read_text(encoding="utf-8")
         )
-        minecraft_version = gradle_dependency_version("com.mojang", "minecraft")
-        fabric_loader_version = gradle_dependency_version("net.fabricmc", "fabric-loader")
-        fabric_api_version = gradle_dependency_version("net.fabricmc.fabric-api", "fabric-api")
-
         self.assertEqual("GPL-3.0-only", metadata["license"])
-        self.assertEqual(minecraft_version, metadata["depends"]["minecraft"])
-        self.assertEqual(f">={fabric_loader_version}", metadata["depends"]["fabricloader"])
-        self.assertEqual(f">={fabric_api_version}", metadata["depends"]["fabric-api"])
         self.assertNotIn("fabric-api", metadata.get("suggests", {}))
 
         icon = metadata.get("icon")

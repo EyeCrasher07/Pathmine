@@ -17,7 +17,7 @@ foreach(shader IN LISTS legacyShaders)
   add_custom_command(OUTPUT "${output}"
     COMMAND "${REMIX_GLSLANG}" -V --vn "${shaderName}" "${shader}"
       -o "${output}" --target-env vulkan1.2 --quiet
-    DEPENDS "${shader}" VERBATIM)
+    DEPENDS "${shader}" "${REMIX_GLSLANG}" VERBATIM)
   list(APPEND legacyHeaders "${output}")
 endforeach()
 add_custom_target(remix-glsl-shaders DEPENDS ${legacyHeaders})

@@ -534,23 +534,7 @@ class PublicLeakPatternTests(unittest.TestCase):
         self.assertFalse(present, "root entries present:\n" + "\n".join(present))
 
 
-# The developer tools launch only through a signed-in Prism. runClient may appear as a string only as the launcher
-# label compare shows for a manifest written before runs recorded their launcher; anywhere else it could be a launch.
-RUN_CLIENT_LITERAL = re.compile(r"""(["'])runClient\1""")
-RUN_CLIENT_LABEL = {"rtx_tools/cli.py": 1}
-# Prism's offline switch as a bare token, quoted or not.
 OFFLINE_FLAG = re.compile(r"(?<![\w-])--offline(?![\w-])")
-# The only tracked files outside the tests that may name it: the root agent guide states that it is never passed.
-OFFLINE_FLAG_RULES = {"AGENTS.md": 1}
-# In the tools' own guides and launcher script, runClient may name only the benchmark run log's file.
-RUN_CLIENT_OUTSIDE_LOG_NAME = re.compile(r"runClient(?!\.log\b)")
-
-
-def tools_launch_text():
-    """The tools' guides and launcher script, by tracked name: what tells a contributor how the tools launch."""
-    for name, path in public_tracked_files():
-        if name == "tools/rtx.bat" or (name.startswith("tools/") and name.endswith(".md")):
-            yield name, path.read_text(encoding="utf-8")
 
 
 def cli_help_texts():
@@ -564,35 +548,6 @@ def cli_help_texts():
         for action in parser._actions:
             if isinstance(action, argparse._SubParsersAction):
                 parsers.extend(action.choices.values())
-
-
-def test_public_tools_never_launch_offline():
-    src = util.TOOLS_DIR / "src"
-    run_client_literals = {}
-    for path in src.rglob("*.py"):
-        text = path.read_text(encoding="utf-8")
-        if count := len(RUN_CLIENT_LITERAL.findall(text)):
-            run_client_literals[path.relative_to(src).as_posix()] = count
-        assert "mcUsername" not in text, path
-        assert not OFFLINE_FLAG.search(text), path
-    assert run_client_literals == RUN_CLIENT_LABEL
-
-
-def test_nothing_outside_the_tests_passes_prism_offline():
-    # Wider than the tools: a guide, build.gradle or an installer script must not pass it either.
-    found = {}
-    for name, path in public_tracked_files():
-        if name.startswith("tools/tests/") or not is_text(name):
-            continue
-        if count := len(OFFLINE_FLAG.findall(path.read_text(encoding="utf-8", errors="replace"))):
-            found[name] = count
-    assert found == OFFLINE_FLAG_RULES
-
-
-def test_tools_guides_and_launcher_script_never_launch_offline():
-    for name, text in tools_launch_text():
-        assert not RUN_CLIENT_OUTSIDE_LOG_NAME.search(text), name
-        assert "mcUsername" not in text, name
 
 
 def test_cli_help_never_offers_an_offline_launch(isolated_tools_config):

@@ -4,39 +4,50 @@
  */
 package com.nvidia.rtxremix.minecraft;
 
+import org.joml.Matrix4f;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaFileObject;
+import javax.tools.ToolProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.regex.Pattern;
+import java.util.List;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RemixJavaBoundaryTest {
-    private static final Pattern GAME_IMPORT = Pattern.compile(
-            "(?m)^\\s*import\\s+(?:static\\s+)?net\\.(?:minecraft|fabricmc)\\.");
+    @Test
+    void shimSourcesDoNotImportMinecraftOrFabric(@TempDir Path output) throws Exception {
+        try (Stream<Path> sources = Files.walk(Path.of("rtxremix-java", "src"))) {
+            List<Path> files = sources.filter(path -> path.toString().endsWith(".java")).toList();
+            assertFalse(files.isEmpty());
+            assertTrue(compile(files, output));
+        }
+    }
 
     @Test
-    void shimSourcesDoNotImportMinecraftOrFabric() throws Exception {
-        Path sourceRoot = Path.of("rtxremix-java", "src");
-        assertTrue(Files.isDirectory(sourceRoot), "missing Java shim sources: " + sourceRoot);
-
-        Set<String> offenders = new TreeSet<>();
-        try (Stream<Path> sources = Files.walk(sourceRoot)) {
-            var iterator = sources.filter(path -> path.toString().endsWith(".java")).iterator();
-            while (iterator.hasNext()) {
-                Path source = iterator.next();
-                if (GAME_IMPORT.matcher(Files.readString(source)).find()) {
-                    offenders.add(sourceRoot.relativize(source).toString());
-                }
-            }
+    void isolatedCompilationRejectsGameDependencies(@TempDir Path output) throws Exception {
+        for (String type : List.of("net.minecraft.util.Identifier", "net.fabricmc.api.ClientModInitializer")) {
+            Path source = output.resolve("ForbiddenDependency.java");
+            Files.writeString(source, "class ForbiddenDependency { " + type + " value; }");
+            assertFalse(compile(List.of(source), output), type);
         }
+    }
 
-        assertEquals(Set.of(), offenders,
-                "the Java shim must remain independent of Minecraft and Fabric");
+    private static boolean compile(List<Path> sources, Path output) throws Exception {
+        var compiler = ToolProvider.getSystemJavaCompiler();
+        assertNotNull(compiler);
+        var diagnostics = new DiagnosticCollector<JavaFileObject>();
+        String joml = Path.of(Matrix4f.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+        try (var manager = compiler.getStandardFileManager(diagnostics, null, null)) {
+            return compiler.getTask(null, manager, diagnostics,
+                    List.of("--release", "21", "-proc:none", "-classpath", joml, "-d", output.toString()),
+                    null, manager.getJavaFileObjectsFromPaths(sources)).call();
+        }
     }
 }

@@ -1,0 +1,95 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+
+allprojects { project ->
+    afterEvaluate {
+        def remapped = tasks.named('remapJar').get()
+        remapped.setDependsOn([])
+        remapped.enabled = false
+        remapped.destinationDirectory.set(layout.projectDirectory.dir('fixtures'))
+        remapped.archiveFileName.set('synthetic-remapped.jar')
+        tasks.named('build') { setDependsOn([]) }
+        ['compileNativeWin64', 'compileNativeArm64', 'compileNativeLinux64',
+         'fetchRuntimeSdkWin64', 'fetchRuntimeSdkArm64', 'verifyRuntimeSdkLinux64',
+         'fetchRuntimeTextures'].each { name ->
+            tasks.named(name) {
+                setDependsOn([])
+                enabled = false
+            }
+        }
+        tasks.register('publicationTestModel') {
+            doLast {
+                def wrapper = new Properties()
+                file('gradle/wrapper/gradle-wrapper.properties').withInputStream { wrapper.load(it) }
+                def loomArtifact = buildscript.configurations.classpath.resolvedConfiguration.resolvedArtifacts.find {
+                    it.name == 'fabric-loom'
+                }
+                def model = [
+                    gradleVersion: gradle.gradleVersion,
+                    wrapper: wrapper,
+                    loomVersion: loomArtifact.moduleVersion.id.version,
+                    baseVersion: project.property('mod_version'),
+                    version: project.version.toString(),
+                    dependencies: ['minecraft', 'modImplementation'].collectMany { name ->
+                        configurations[name].dependencies.collect {
+                            [group: it.group, name: it.name, version: it.version]
+                        }
+                    },
+                    vmArgs: project.loom.runs.getByName('client').vmArgs,
+                    configOutputs: tasks.named('copyRuntimeConfig').get().outputs.files.files*.absolutePath,
+                    fabricSources: tasks.named('stageFabricApi').get().source.files*.absolutePath,
+                    packageJar: tasks.named('packageJar').get().archiveFile.get().asFile.absolutePath,
+                    releaseArchive: tasks.named('releaseArchive').get().archiveFile.get().asFile.absolutePath,
+                    packageDependencies: tasks.named('package').get().taskDependencies
+                        .getDependencies(tasks.named('package').get())*.name,
+                    stagingDependencies: tasks.named('stageReleaseArchive').get().taskDependencies
+                        .getDependencies(tasks.named('stageReleaseArchive').get())*.name
+                ]
+                def output = layout.buildDirectory.file('publication-test-model.json').get().asFile
+                output.parentFile.mkdirs()
+                output.text = JsonOutput.toJson(model)
+            }
+        }
+        tasks.register('publicationTestPythonGuard') {
+            dependsOn 'packageJar'
+            doLast {
+                def archive = tasks.named('packageJar').get().archiveFile.get().asFile
+                def original = archive.bytes
+                def results = [:]
+                try {
+                    new JsonSlurper().parse(file('fixtures/python-entries.json')).each { name ->
+                        archive.withOutputStream { stream ->
+                            def output = new ZipOutputStream(stream)
+                            def input = new ZipInputStream(new ByteArrayInputStream(original))
+                            ZipEntry entry
+                            while ((entry = input.nextEntry) != null) {
+                                output.putNextEntry(new ZipEntry(entry.name))
+                                input.transferTo(output)
+                                output.closeEntry()
+                            }
+                            input.close()
+                            output.putNextEntry(new ZipEntry(name))
+                            output.write('synthetic payload'.bytes)
+                            output.closeEntry()
+                            output.close()
+                        }
+                        try {
+                            def verifier = tasks.named('verifyPackageJar').get()
+                            verifier.actions.each { it.execute(verifier) }
+                            results[name] = null
+                        } catch (GradleException error) {
+                            results[name] = error.message
+                        }
+                    }
+                } finally {
+                    archive.bytes = original
+                }
+                file('build/publication-test-python.json').text = JsonOutput.toJson(results)
+            }
+        }
+    }
+}

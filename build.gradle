@@ -109,6 +109,7 @@ def checkPackageSourceHomogeneity = { ->
 //     avoids naming confusion with remixbridge.dll, our JNI shim)
 ext.sdkExclusions = { details ->
     def name = details.name
+    if (name == '.local-sdk-source') return true
     if (name == 'NvRemixBridge.exe' || name == 'NvRemixBridge.pdb') return true
     if (name.endsWith('.pdb') && name != 'remixbridge.pdb') return true
     return false

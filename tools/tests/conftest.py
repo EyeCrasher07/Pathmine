@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import json
+import os
 import re
+import shutil
 import struct
 import subprocess
 from dataclasses import dataclass, field
@@ -165,3 +168,110 @@ def fake_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeLaunch
     monkeypatch.setattr(util, "RUN_DIR", util.RUN_DIR)
     client.use(fake)
     return fake
+
+
+@dataclass
+class GradleProject:
+    root: Path
+    model: dict = field(default_factory=dict)
+    benchmark_model: dict = field(default_factory=dict)
+
+    def run(self, *args: str) -> subprocess.CompletedProcess[str]:
+        wrapper = self.root / ("gradlew.bat" if os.name == "nt" else "gradlew")
+        command = [str(wrapper), "--console=plain", "-I", str(self.root / "probe.gradle"), *args]
+        result = subprocess.run(command, cwd=self.root, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, result.stdout + result.stderr
+        return result
+
+    def read_model(self) -> dict:
+        return json.loads((self.root / "build" / "publication-test-model.json").read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def gradle_project(tmp_path_factory: pytest.TempPathFactory) -> GradleProject:
+    import zipfile
+
+    root = tmp_path_factory.mktemp("synthetic-gradle-project")
+    for name in (
+        "build.gradle",
+        "settings.gradle",
+        "gradle.properties",
+        "gradlew",
+        "gradlew.bat",
+        "gradle",
+        "packaging",
+        "src/main/resources",
+        "LICENSE",
+        "LICENSES",
+        "NOTICE",
+        "THIRD_PARTY_NOTICES.md",
+    ):
+        source = util.PROJECT_DIR / name
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_dir():
+            shutil.copytree(source, target)
+        else:
+            shutil.copy2(source, target)
+    shutil.copy2(util.TOOLS_DIR / "tests" / "gradle_probe.gradle", root / "probe.gradle")
+    subprocess.run(["git", "init", "--quiet", str(root)], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Synthetic Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "--quiet",
+            "--allow-empty",
+            "-m",
+            "Synthetic packaging fixture",
+        ],
+        cwd=root,
+        check=True,
+    )
+    fixtures = root / "fixtures"
+    fixtures.mkdir()
+    with zipfile.ZipFile(fixtures / "synthetic-remapped.jar", "w") as jar:
+        jar.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n\n")
+        jar.writestr("fabric.mod.json", '{"id":"synthetic-mod"}')
+    for arch in ("win64", "arm64", "linux64"):
+        sdk = root / "remix-runtime" / arch
+        sdk.mkdir(parents=True)
+        (sdk / ".local-sdk-source").write_text("source: C:/synthetic-sdk\nstaged_by: SyntheticUser\n", encoding="utf-8")
+        for name in (
+            "d3d9.dll",
+            "usd_usd.dll",
+            "usd/plugins/RemixParticleSystem.dll",
+            "dxvk.pdb",
+            "NvRemixBridge.exe",
+            "NvRemixBridge.pdb",
+            "remixbridge.dll",
+            "remixbridge.pdb",
+            "libremix.so",
+            "libremix-core.so",
+            "libNRD.so",
+            "libusd_ms.so",
+            "libtbb.so.12",
+            "libremixbridge.so",
+        ):
+            path = sdk / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"synthetic SDK input")
+        bridge = root / "build" / "native" / arch
+        bridge.mkdir(parents=True)
+        for name in ("remixbridge.dll", "remixbridge.pdb", "libremixbridge.so"):
+            (bridge / name).write_bytes(b"synthetic fresh bridge")
+    textures = root / "remix-runtime" / "textures"
+    textures.mkdir()
+    for name in ("overcast_thunderstorm_bc6u.dds", "water_normals_flipbook.dds"):
+        (textures / name).write_bytes(b"synthetic DDS input")
+    project = GradleProject(root)
+    project.run("publicationTestModel", "processResources", "stageFabricApi", "-Parch=win64")
+    project.model = project.read_model()
+    project.run("publicationTestModel", "-Parch=win64", "-PbenchmarkJfrPath=C:/r/profile.jfr")
+    project.benchmark_model = project.read_model()
+    return project
