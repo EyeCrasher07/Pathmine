@@ -61,12 +61,10 @@ submodules from the root Pathmine checkout first. File Pathmine bugs in the
         - type `cmd` in the address bar to open a command line window in that folder.
         - copy and paste `powershell -command "& .\build_dxvk_all_ninja.ps1"` into the command line, then press enter
     - Optional flags:
-        - `-SkipApics` — skip downloading game test captures (requires auth token)
         - `-BuildArch <x64|arm64|arm64ec>` — target architecture, default `x64`. `arm64ec` is configured with the Visual Studio backend rather than Ninja, because Meson cannot link arm64ec targets with Ninja, so the `_Comp*_arm64ec` directories hold MSBuild projects instead of Ninja files. The generated **_vs** solution always drives the `_Comp*_x64` directories; build other architectures with `meson compile -C <build directory>`.
     - Examples:
         ```powershell
         .\build_dxvk_all_ninja.ps1
-        .\build_dxvk_all_ninja.ps1 -SkipApics
         .\build_dxvk_all_ninja.ps1 -BuildArch arm64
         ```
     - This will build all 3 configurations of dxvk-remix project inside subdirectories of the build tree:

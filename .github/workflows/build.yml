@@ -53,4 +53,4 @@ jobs:
       - name: Test CPU platform services
         run: >-
           ctest --test-dir runtime/_NativePlatform --output-on-failure
-          -R '^native-(runtime-distribution-checker|api016-header|api-header|shared-library|platform-services|mapped-file|directory-watch|keybind|math)$'
+          -R '^native-(runtime-distribution-checker|shader-dependencies|api016-header|api-header|shared-library|platform-services|mapped-file|directory-watch|keybind|math)$'

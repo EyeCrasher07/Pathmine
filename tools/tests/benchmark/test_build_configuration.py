@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import os
 import subprocess
+import sys
 import xml.etree.ElementTree as ElementTree
 import zipfile
 from pathlib import Path
@@ -187,3 +189,73 @@ def test_dev_instance_fabric_api_comes_from_the_pinned_dependency(gradle_project
 
 def test_development_jvm_defaults_match_the_installer(gradle_project: GradleProject):
     assert gradle_project.model["vmArgs"] == prism.installer_constant("RECOMMENDED_JVM_ARGS").split()
+
+
+@pytest.mark.parametrize("task", ["compileNativeWin64", "compileNativeArm64"])
+def test_windows_native_headers_invalidate_compilation(gradle_project: GradleProject, task: str):
+    project = gradle_project
+    bridge = project.root / "rtxremix-java/native"
+    platform = bridge / "bridge_platform.h"
+    bundled = bridge / "include/remix_c.h"
+    original_platform = platform.read_bytes()
+    original_api = bundled.read_bytes()
+    relative_include = "relative includes"
+    absolute_include = project.root / "fixtures/absolute includes"
+    for directory in (bridge / relative_include, absolute_include):
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "remix_c.h").write_bytes(original_api)
+
+    def compile_with(include: str | None, *, up_to_date: bool):
+        environment = dict(os.environ)
+        environment.pop("REMIX_INCLUDE", None)
+        if include is not None:
+            environment["REMIX_INCLUDE"] = include
+        result = project.run(
+            task,
+            "publicationTestModel",
+            "-PpublicationTestNativeInputs",
+            f"-PpublicationTestPython={sys.executable}",
+            env=environment,
+        )
+        status = " UP-TO-DATE" if up_to_date else "\n"
+        assert f"> Task :{task}{status}" in result.stdout
+        inputs = project.read_model()["nativeInputs"][task]
+        selected = bridge / (include or "include") / "remix_c.h"
+        assert set(inputs["files"]) == {
+            str(bridge / "build_native.bat"),
+            str(bridge / "remixbridge.cpp"),
+            str(platform),
+            str(selected),
+        }
+        assert inputs["include"] == (include or "include")
+
+    try:
+        compile_with(None, up_to_date=False)
+        compile_with(None, up_to_date=True)
+        compile_with("", up_to_date=True)
+        platform.write_bytes(original_platform + b"\n")
+        compile_with(None, up_to_date=False)
+        compile_with(None, up_to_date=True)
+        bundled.write_bytes(original_api + b"\n")
+        compile_with(None, up_to_date=False)
+        compile_with(None, up_to_date=True)
+        compile_with(relative_include, up_to_date=False)
+        compile_with(relative_include, up_to_date=True)
+        relative_header = bridge / relative_include / "remix_c.h"
+        relative_header.write_bytes(original_api + b"\n\n")
+        compile_with(relative_include, up_to_date=False)
+        bundled.write_bytes(original_api + b"\n\n\n")
+        compile_with(relative_include, up_to_date=True)
+        absolute_header = absolute_include / "remix_c.h"
+        absolute_header.write_bytes(relative_header.read_bytes())
+        compile_with(str(absolute_include), up_to_date=False)
+        compile_with(str(absolute_include), up_to_date=True)
+        absolute_header.write_bytes(original_api + b"\n\n\n\n")
+        compile_with(str(absolute_include), up_to_date=False)
+        compile_with(str(absolute_include), up_to_date=True)
+        bundled.write_bytes(original_api)
+        compile_with(None, up_to_date=False)
+        compile_with(None, up_to_date=True)
+    finally:
+        platform.write_bytes(original_platform)
+        bundled.write_bytes(original_api)

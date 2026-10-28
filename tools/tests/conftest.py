@@ -176,10 +176,10 @@ class GradleProject:
     model: dict = field(default_factory=dict)
     benchmark_model: dict = field(default_factory=dict)
 
-    def run(self, *args: str) -> subprocess.CompletedProcess[str]:
+    def run(self, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         wrapper = self.root / ("gradlew.bat" if os.name == "nt" else "gradlew")
         command = [str(wrapper), "--console=plain", "-I", str(self.root / "probe.gradle"), *args]
-        result = subprocess.run(command, cwd=self.root, capture_output=True, text=True, check=False)
+        result = subprocess.run(command, cwd=self.root, env=env, capture_output=True, text=True, check=False)
         assert result.returncode == 0, result.stdout + result.stderr
         return result
 
@@ -201,6 +201,10 @@ def gradle_project(tmp_path_factory: pytest.TempPathFactory) -> GradleProject:
         "gradle",
         "packaging",
         "src/main/resources",
+        "rtxremix-java/native/build_native.bat",
+        "rtxremix-java/native/remixbridge.cpp",
+        "rtxremix-java/native/bridge_platform.h",
+        "rtxremix-java/native/include/remix_c.h",
         "LICENSE",
         "LICENSES",
         "NOTICE",

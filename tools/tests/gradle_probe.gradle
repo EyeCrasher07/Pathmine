@@ -21,6 +21,20 @@ allprojects { project ->
                 enabled = false
             }
         }
+        if (project.hasProperty('publicationTestNativeInputs')) {
+            ['compileNativeWin64', 'compileNativeArm64'].each { name ->
+                def bridgeTask = tasks.named(name).get()
+                bridgeTask.enabled = true
+                bridgeTask.commandLine([project.property('publicationTestPython'), '-c', '''
+from pathlib import Path
+import sys
+for name in sys.argv[1:]:
+    output = Path(name)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(b"synthetic fresh bridge")
+'''] + bridgeTask.outputs.files.files*.absolutePath)
+            }
+        }
         tasks.register('publicationTestModel') {
             doLast {
                 def wrapper = new Properties()
@@ -41,6 +55,11 @@ allprojects { project ->
                     },
                     vmArgs: project.loom.runs.getByName('client').vmArgs,
                     configOutputs: tasks.named('copyRuntimeConfig').get().outputs.files.files*.absolutePath,
+                    nativeInputs: ['compileNativeWin64', 'compileNativeArm64'].collectEntries { name ->
+                        def bridgeTask = tasks.named(name).get()
+                        [(name): [files: bridgeTask.inputs.files.files*.absolutePath,
+                                  include: bridgeTask.inputs.properties.remixInclude]]
+                    },
                     fabricSources: tasks.named('stageFabricApi').get().source.files*.absolutePath,
                     packageJar: tasks.named('packageJar').get().archiveFile.get().asFile.absolutePath,
                     releaseArchive: tasks.named('releaseArchive').get().archiveFile.get().asFile.absolutePath,

@@ -488,6 +488,11 @@ tasks.register('stageFabricApi', Copy) {
 // remix-runtime/{arch}/ (a managed SDK directory is a junction into a shared cache,
 // so writing there would mutate every workspace pointing at it).
 // setupRuntime/packageJar below layer the bridge on top of the SDK at copy time.
+def nativeBridgeSourceDir = layout.projectDirectory.dir('rtxremix-java/native')
+def remixInclude = providers.environmentVariable('REMIX_INCLUDE').map { it ?: 'include' }.orElse('include')
+def remixApiHeader = remixInclude.map {
+    nativeBridgeSourceDir.asFile.toPath().resolve(it).resolve('remix_c.h').normalize().toFile()
+}
 tasks.register('compileNativeWin64', Exec) {
     description = 'Compiles remixbridge.dll for x64 (Windows x86_64)'
     group = 'build'
@@ -495,7 +500,8 @@ tasks.register('compileNativeWin64', Exec) {
     commandLine 'cmd', '/c', file('rtxremix-java/native/build_native.bat').absolutePath, 'x64'
     inputs.files file('rtxremix-java/native/build_native.bat'),
                  file('rtxremix-java/native/remixbridge.cpp'),
-                 file('rtxremix-java/native/include/remix_c.h')
+                 file('rtxremix-java/native/bridge_platform.h'), remixApiHeader
+    inputs.property 'remixInclude', remixInclude
     outputs.files file('build/native/win64/remixbridge.dll'),
                   file('build/native/win64/remixbridge.pdb')
 }
@@ -507,7 +513,8 @@ tasks.register('compileNativeArm64', Exec) {
     commandLine 'cmd', '/c', file('rtxremix-java/native/build_native.bat').absolutePath, 'arm64'
     inputs.files file('rtxremix-java/native/build_native.bat'),
                  file('rtxremix-java/native/remixbridge.cpp'),
-                 file('rtxremix-java/native/include/remix_c.h')
+                 file('rtxremix-java/native/bridge_platform.h'), remixApiHeader
+    inputs.property 'remixInclude', remixInclude
     outputs.files file('build/native/arm64/remixbridge.dll'),
                   file('build/native/arm64/remixbridge.pdb')
 }
