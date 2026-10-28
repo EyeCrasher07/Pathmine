@@ -171,9 +171,10 @@ def install_development_build(project_dir: Path, *, game_dir: Path | None = None
 
     mods = game_dir / "mods"
     mods.mkdir(parents=True, exist_ok=True)
-    for previous in (*mods.glob("pathmine*.jar"), *mods.glob("rtx-remix-renderer*.jar")):
-        if previous.is_file():
-            previous.unlink()
+    for pattern in ("pathmine.jar", "pathmine-*.jar", "rtx-remix-renderer.jar", "rtx-remix-renderer-*.jar"):
+        for previous in mods.glob(pattern):
+            if previous.is_file():
+                previous.unlink()
     shutil.copy2(mod_jar, mods / "pathmine.jar")
     if not any(mods.glob("fabric-api-*.jar")):
         print(f"WARNING: no fabric-api jar in {mods}.")

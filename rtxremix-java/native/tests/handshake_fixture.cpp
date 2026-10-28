@@ -4,6 +4,9 @@
  */
 #include "bridge_platform.h"
 #include <cstring>
+#include <fstream>
+#include <iterator>
+#include <string>
 
 // Test-only loader/version-table fixtures. These libraries have no renderer,
 // device, scene, presentation, or production runtime implementation.
@@ -33,6 +36,24 @@ static remixapi_ErrorCode checkPresentArguments(const remixapi_PresentInfo* info
             && info->interopFlipY && info->clientDoneSemaphore_ValueToWait == 42
             && info->disableCpuWaitForExternalSemaphores
             ? REMIXAPI_ERROR_CODE_SUCCESS : REMIXAPI_ERROR_CODE_INVALID_ARGUMENTS;
+}
+
+static remixapi_ErrorCode checkConfigLayerPath(const char* path, float priority, float threshold,
+        remixapi_ConfigLayerHandle* handle) {
+    if (!path || !handle || priority != 41.f || threshold != 0.25f) {
+        return REMIXAPI_ERROR_CODE_INVALID_ARGUMENTS;
+    }
+    std::ifstream file(path, std::ios::binary);
+    if (!file || std::string(std::istreambuf_iterator<char>(file), {}) != path) {
+        return REMIXAPI_ERROR_CODE_GENERAL_FAILURE;
+    }
+    *handle = reinterpret_cast<remixapi_ConfigLayerHandle>(uintptr_t(1));
+    return REMIXAPI_ERROR_CODE_SUCCESS;
+}
+
+static remixapi_ErrorCode releaseConfigLayer(remixapi_ConfigLayerHandle handle) {
+    return handle == reinterpret_cast<remixapi_ConfigLayerHandle>(uintptr_t(1))
+        ? REMIXAPI_ERROR_CODE_SUCCESS : REMIXAPI_ERROR_CODE_INVALID_ARGUMENTS;
 }
 
 #ifdef FIXTURE_handshake
@@ -75,6 +96,8 @@ extern "C" REMIXAPI remixapi_ErrorCode REMIXAPI_CALL remixapi_InitializeLibrary(
     output->UpdateTextureFromMemory = unusedTextureUpdate;
     output->UpdateMaterial = unusedMaterialUpdate;
     output->GetConfigVariableResolved = unusedResolvedValue;
+    output->AcquireConfigLayer = checkConfigLayerPath;
+    output->ReleaseConfigLayer = releaseConfigLayer;
 #endif
     return REMIXAPI_ERROR_CODE_SUCCESS;
 #endif

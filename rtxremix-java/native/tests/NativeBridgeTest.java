@@ -13,6 +13,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -59,6 +60,7 @@ public final class NativeBridgeTest {
 
         RemixAPI api = RemixAPI.load(args[4]);
         if (!api.isInitialized()) throw new AssertionError("Handshake was not recorded");
+        checkConfigLayerPaths(api, bridge.getParent());
         api.beginFrame(1280, 720);
         api.beginFrame(0, 0);
         api.injectOverlayInput(3, 65, 1, 2);
@@ -87,6 +89,34 @@ public final class NativeBridgeTest {
         }
         System.out.println("Native ELF JNI bridge: " + boundMethods
                 + " methods bound; loader/version/ownership checks passed (no renderer exercised)");
+    }
+
+    private static void checkConfigLayerPaths(RemixAPI api, Path buildDirectory) throws Exception {
+        Path root = Files.createTempDirectory(buildDirectory, "config-paths-");
+        try {
+            for (String name : List.of("game", "игра", "world-🚀")) {
+                Path directory = Files.createDirectory(root.resolve(name));
+                Path conf = directory.resolve("water.conf");
+                try {
+                    Files.writeString(conf, conf.toString(), StandardCharsets.UTF_8);
+                    for (int acquisition = 0; acquisition < 2; acquisition++) {
+                        long handle;
+                        try {
+                            handle = api.acquireConfigLayer(conf.toString(), 41.f, 0.25f);
+                        } catch (RemixException failure) {
+                            throw new AssertionError("Config path bytes changed: " + conf, failure);
+                        }
+                        if (handle != 1) throw new AssertionError("Config path bytes changed: " + conf);
+                        api.releaseConfigLayer(handle);
+                    }
+                } finally {
+                    Files.deleteIfExists(conf);
+                    Files.delete(directory);
+                }
+            }
+        } finally {
+            Files.delete(root);
+        }
     }
 
     private static int bindEveryNativeMethod() throws Exception {

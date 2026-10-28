@@ -29,8 +29,9 @@ output = Path(args[args.index('-o') + 1])
 inputs = [Path(name) for name in json.loads(os.environ['FIXTURE_SHADER_INPUTS'])]
 output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(hashlib.sha256(b''.join(path.read_bytes() for path in inputs)).hexdigest())
-if '--depfile' in args:
-    Path(args[args.index('--depfile') + 1]).write_text(str(output) + ': ' + ' '.join(map(str, inputs)) + '\n')
+for dependency_option in ('--depfile', '-depfile'):
+    if dependency_option in args:
+        Path(args[args.index(dependency_option) + 1]).write_text(str(output) + ': ' + ' '.join(map(str, inputs)) + '\n')
 with open(os.environ['FIXTURE_SHADER_LOG'], 'a') as log:
     log.write(str(output) + '\n')
 """
@@ -64,6 +65,8 @@ class ShaderDependencyTests(unittest.TestCase):
             (shaders / "rtx").mkdir(parents=True)
             local = shaders / "rtx/fixture.comp"
             local.write_text("#version 450\nvoid main() {}\n")
+            slang_local = shaders / "rtx/fixture_slang.comp.slang"
+            slang_local.write_text("[shader(\"compute\")] void main() {}\n")
             (shaders / "fixture.frag").write_text("#version 450\nvoid main() {}\n")
             headers = [root / name for name in VENDOR_HEADERS]
             for header in headers:
@@ -80,7 +83,7 @@ class ShaderDependencyTests(unittest.TestCase):
             glslang.write_text(COMPILER)
             glslang.chmod(0o755)
             slangc = tools / "slangc"
-            slangc.write_text("synthetic compiler input")
+            slangc.write_text(COMPILER)
             slangc.chmod(0o755)
             slang_library = tools / "libslang.so"
             slang_library.write_text("synthetic compiler library input")
@@ -89,7 +92,7 @@ class ShaderDependencyTests(unittest.TestCase):
             log = root / "compiler.log"
             environment = dict(
                 os.environ,
-                FIXTURE_SHADER_INPUTS=json.dumps(list(map(str, [local, *headers]))),
+                FIXTURE_SHADER_INPUTS=json.dumps(list(map(str, [local, slang_local, *headers]))),
                 FIXTURE_SHADER_LOG=str(log),
             )
             build = root / "build"
@@ -133,7 +136,10 @@ class ShaderDependencyTests(unittest.TestCase):
 
             initial = compile_shaders()
             self.assertIn(str(build / "rtx_shaders/fixture.h"), initial)
+            self.assertIn(str(build / "rtx_shaders/fixture_slang.spv"), initial)
             self.assertIn(str(build / "glsl_shaders/fixture.h"), initial)
+            slang_header = build / "rtx_shaders/fixture_slang.h"
+            self.assertTrue(slang_header.is_file())
             self.assertEqual(len(initial), len(compile_shaders()))
             output = build / "rtx_shaders/fixture.h"
             previous = output.read_bytes()
@@ -141,20 +147,33 @@ class ShaderDependencyTests(unittest.TestCase):
                 with self.subTest(header=header.relative_to(root)):
                     before = len(log.read_text().splitlines())
                     header.write_text("changed fixture header\n")
-                    self.assertEqual(before + 1, len(compile_shaders()))
+                    self.assertEqual(before + 2, len(compile_shaders()))
                     self.assertNotEqual(previous, output.read_bytes())
                     previous = output.read_bytes()
-                    self.assertEqual(before + 1, len(compile_shaders()))
+                    self.assertEqual(before + 2, len(compile_shaders()))
             for compiler, count in (
                 (glslang, len(initial)),
-                (slangc, 1),
-                (slang_library, 1),
+                (slangc, 2),
+                (slang_library, 2),
             ):
                 with self.subTest(compiler=compiler.name):
                     before = len(log.read_text().splitlines())
                     compiler.write_text(compiler.read_text() + "\n")
                     self.assertEqual(before + count, len(compile_shaders()))
                     self.assertEqual(before + count, len(compile_shaders()))
+            for name in ("shader_xxd.py", "depfile.py"):
+                with self.subTest(helper=name):
+                    before = len(log.read_text().splitlines())
+                    previous_header = slang_header.read_bytes()
+                    helper = root / "scripts-common" / name
+                    with helper.open("a") as script:
+                        script.write("\n")
+                        if name == "shader_xxd.py":
+                            script.write("with open(args.output, 'a') as header:\n    header.write('\\n')\n")
+                    self.assertEqual(before + 2, len(compile_shaders()))
+                    if name == "shader_xxd.py":
+                        self.assertEqual(previous_header + b"\n", slang_header.read_bytes())
+                    self.assertEqual(before + 2, len(compile_shaders()))
 
 
 if __name__ == "__main__":

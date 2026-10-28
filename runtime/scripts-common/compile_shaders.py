@@ -52,7 +52,9 @@ else:
 if not os.path.isfile(slangDll):
     parser.error(f'Slang shared library not found: {slangDll}. Pass -slang-library <path>.')
 
-tools = [args.glslang, args.slangc, slangDll, __file__]
+script_dir = os.path.dirname(os.path.realpath(__file__))
+tools = [args.glslang, args.slangc, slangDll, __file__,
+         os.path.join(script_dir, 'depfile.py'), os.path.join(script_dir, 'shader_xxd.py')]
 newestTool = max([os.path.getmtime(x) for x in tools])
 
 # Note: -Os (Optimize Size) used here as while one might typically expect optimizing for size to comprimise speed optimizations,
@@ -269,7 +271,6 @@ def createSlangTask(inputFile, variantSpec):
         task.outputs.append(headerFile)
 
         # Command to convert SPV into c array header
-        script_dir = os.path.dirname(os.path.realpath(__file__))
         shader_xxd = os.path.join(script_dir, 'shader_xxd.py')
         command2 = f'"{sys.executable}" {shader_xxd} -i {destFile} -o {headerFile}'
 

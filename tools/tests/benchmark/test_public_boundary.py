@@ -89,12 +89,11 @@ PUBLIC_LEAK_PATTERNS = [
     ),
     ("author TODO in shipped text", re.compile(rb"\bTODO\b"), set()),
     ("unfilled placeholder", re.compile(rb"\[INSERT [A-Z ]+:|OWNER-FILL"), set()),
-    ("em dash", re.compile(chr(0x2014).encode("utf-8")), set()),
 ]
 
 # Prose rows apply to text bodies and commit messages, not file names or binary
 # metadata, where punctuation and placeholder-like bytes can be incidental.
-TEXT_BODY_ONLY = {"author TODO in shipped text", "unfilled placeholder", "em dash"}
+TEXT_BODY_ONLY = {"author TODO in shipped text", "unfilled placeholder"}
 
 # Set to "<base>..HEAD" to scan the commit messages a change adds. A message is
 # as public as a file once it reaches GitHub.
@@ -430,12 +429,36 @@ class PublicLeakPatternTests(unittest.TestCase):
                 [
                     "12345678: author TODO in shipped text",
                     "12345678: unfilled placeholder",
-                    "12345678: em dash",
                     "12345678: deployment fixture",
                 ],
                 commit_message_leaks("base..HEAD", rows),
             )
             self.assertNotIn("12345678: deployment fixture", commit_message_leaks("base..HEAD", PUBLIC_LEAK_PATTERNS))
+
+    def test_public_scans_allow_typographic_punctuation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("Fix sky — preserve clouds\n", encoding="utf-8")
+            for arguments in (
+                ["init", "--quiet"],
+                ["add", "README.md"],
+                [
+                    "-c",
+                    "user.name=Fixture",
+                    "-c",
+                    "user.email=fixture@example.org",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit",
+                    "--quiet",
+                    "-m",
+                    "Fix sky — preserve clouds",
+                ],
+            ):
+                subprocess.run(["git", *arguments], cwd=root, capture_output=True, check=True)
+            with mock.patch.dict(globals(), REPO_ROOT=root):
+                self.assertEqual([], tracked_file_leaks(PUBLIC_LEAK_PATTERNS))
+                self.assertEqual([], commit_message_leaks("HEAD", PUBLIC_LEAK_PATTERNS))
 
     def test_tracked_sweep_uses_supplied_rows_for_text_names_and_metadata(self):
         rows = [("deployment fixture", re.compile(b"ExampleDeployment"), set())]

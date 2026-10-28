@@ -1,12 +1,15 @@
-# Getting Started (Developers)
+# Getting Started (Windows Developers)
 
-How to build and run the mod from source. If you only want to play, read
+How to build and run the mod from source on Windows. For Linux bridge and
+runtime development, see [Native Linux port](NATIVE_LINUX_PORT.md) and the
+[native runtime build guide](../runtime/native/README.md).
+If you only want to play, read
 [Playing](PLAYING.md) instead.
 
 ## Prerequisites
 
-- **Windows 10 or 11**, on x64 or ARM64. The JNI bridge is compiled with MSVC,
-  so there is no Linux or macOS build.
+- **Windows 10 or 11**, on x64 or ARM64. The Windows JNI bridge is compiled
+  with MSVC.
 - **Java 21**, a JDK matching your machine's architecture. Eclipse Adoptium is
   a good choice. Set `JAVA_HOME` to that JDK: the native build reads it to find
   `jni.h`. Prism runs Minecraft 1.21.1 only on Java 21, not a newer version,
@@ -267,9 +270,11 @@ Fabric API, drop it into the instance's `mods` folder; nothing else is needed.
 The release archive's installer also migrates old generated baseline packs and
 preserves user-pack ordering.
 
-Every task that reaches `classes` runs `setupRuntime` first, which compiles the
-bridge and stages the runtime. `test` and `build` therefore need a staged
-runtime and the C++ toolchain just as `tools\rtx.bat launch` does.
+On Windows, every task that reaches `classes` runs `setupRuntime` first, which
+compiles the bridge and stages the runtime. Windows `test` and `build` therefore
+need a staged runtime and the C++ toolchain just as `tools\rtx.bat launch` does.
+On Linux, `classes` builds the ELF JNI bridge without staging a runtime;
+`setupRuntime` and `package` require a matching Linux runtime.
 `setupRuntime` also syncs a full copy of the runtime, PDBs included, with the
 bridge, `rtx.conf`, the gameplay conf payload, and the runtime textures into
 `run/`, the game directory of Gradle's `runClient` task, so every build
@@ -286,16 +291,16 @@ The task also requires every `packaging/licenses/` file in the JAR.
 
 | `package` invocation | Output |
 |---|---|
-| `package` | Dual-architecture fat JAR. Needs both architectures staged from the same kind of source |
+| `package` on Windows | Dual-architecture fat JAR. Needs both Windows architectures staged from the same kind of source |
 | `package -Parch=win64` | win64 only, skips the arm64 bridge compile |
 | `package -Parch=arm64` | arm64 only, useful for cross-building for device testing |
 
 `releaseArchive` runs `package` and its `verifyPackageJar` check, then stages
 the verified JAR under `build/release/mods/` and the installer scripts,
 documentation, and license notices beside it. It writes that layout as a ZIP
-in `build/distributions/`. The same `-Parch` selection applies; omitting it
-includes both architectures. No separate baseline resource-pack directory is
-needed.
+in `build/distributions/`. The same `-Parch` selection applies; omitting it on
+Windows includes both Windows architectures. Linux defaults to `linux64` for
+both packaging tasks. No separate baseline resource-pack directory is needed.
 
 ## Tooling And CI
 

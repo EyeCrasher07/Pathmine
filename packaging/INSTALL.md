@@ -191,7 +191,8 @@ Everything is under the game folder, which is:
 
 The automated uninstall removes these:
 
-- `mods\pathmine-*.jar`
+- `mods\pathmine.jar` and `mods\pathmine-*.jar`
+- `mods\rtx-remix-renderer.jar` and `mods\rtx-remix-renderer-*.jar`
 - `mods\fabric-api-*.jar`, all of them in a Prism instance, and only the
   version the mod pins in the Microsoft launcher's shared `mods\` folder
 - `remix-sdk\`

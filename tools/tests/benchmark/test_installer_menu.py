@@ -12,7 +12,9 @@ the menu therefore waits for a key first, or its result and any error vanish wit
 
 import os
 import re
+import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -34,7 +36,8 @@ ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 # QUEUED, and a wait for a fresh key prints HELD.
 HARNESS = r"""
 param([string]$Installer, [string]$Loaded, [string]$Action, [string]$Installed, [switch]$NoPrism, [switch]$NoMs,
-      [string]$Mode, [switch]$Unattended, [string]$Choice, [string]$Outcome, [int]$Queued)
+      [string]$Mode, [switch]$Unattended, [string]$Choice, [string]$Outcome, [int]$Queued,
+      [string]$McDir, [string]$Dist)
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($Installer, [ref]$null, [ref]$null)
 $entryPoint = $ast.EndBlock.Statements[-1]
 if ($entryPoint -isnot [System.Management.Automation.Language.TryStatementAst]) {
@@ -55,6 +58,12 @@ function Invoke-Menu {
     return $Items[0].Value
 }
 switch ($Action) {
+    'DetectMod' { Write-Host "Installed: $(Get-InstalledModVersion -McDir $McDir)" }
+    'InstallMod' {
+        $script:SCRIPT_DIR = $Dist
+        Install-ModFiles -McDir $McDir
+    }
+    'RemoveMod' { Remove-ModArtifacts -McDir $McDir -Launcher Microsoft }
     'Upgrade' {
         $detected = [pscustomobject]@{ ModInstalled = $mods }
         $picked = Select-Launcher -State $launchers -DetectedState $detected -BiasToInstalledLauncher
@@ -136,6 +145,63 @@ def run_step(tmp_path: Path, action: str, installed: str, *, prism: bool = True,
     assert not result.stderr
     # The menu enters the alternate screen first, so its escape sequence prefixes the first line.
     return ANSI.sub("", result.stdout)
+
+
+@pytest.mark.parametrize(
+    "owned",
+    ["pathmine.jar", "rtx-remix-renderer.jar", "pathmine-0.0.1.jar", "rtx-remix-renderer-0.0.1.jar"],
+)
+@pytest.mark.parametrize("action", ["DetectMod", "InstallMod", "RemoveMod"])
+def test_installer_recognizes_owned_stable_and_versioned_jars(tmp_path: Path, owned: str, action: str):
+    game = tmp_path / "game"
+    mods = game / "mods"
+    mods.mkdir(parents=True)
+    (mods / owned).write_bytes(b"previous mod")
+    unrelated = {
+        "another-mod.jar": b"another mod",
+        "pathminimap.jar": b"unrelated Pathmine prefix",
+        "rtx-remix-rendererextras.jar": b"unrelated renderer prefix",
+    }
+    for name, content in unrelated.items():
+        (mods / name).write_bytes(content)
+    dist = tmp_path / "dist"
+    (dist / "mods").mkdir(parents=True)
+    package = dist / "mods/pathmine-0.0.2.jar"
+    with zipfile.ZipFile(package, "w") as jar:
+        jar.writestr("fabric.mod.json", '{"id":"rtx-remix-renderer","version":"0.0.2"}')
+    shutil.copy2(INSTALLER.with_name("migrate_resource_packs.ps1"), dist)
+
+    result = run_harness(tmp_path, "-Action", action, "-McDir", str(game), "-Dist", str(dist))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not result.stderr
+    expected = dict(unrelated)
+    if action == "DetectMod":
+        assert f"Installed: {owned}" in result.stdout
+        expected[owned] = b"previous mod"
+    elif action == "InstallMod":
+        expected[package.name] = package.read_bytes()
+    assert {path.name: path.read_bytes() for path in mods.iterdir()} == expected
+
+
+def test_installer_detection_ignores_unrelated_jars_and_classifiers(tmp_path: Path):
+    game = tmp_path / "game"
+    mods = game / "mods"
+    mods.mkdir(parents=True)
+    for name in (
+        "another-mod.jar",
+        "pathminimap.jar",
+        "rtx-remix-rendererextras.jar",
+        "pathmine-0.0.1-sources.jar",
+        "rtx-remix-renderer-0.0.1-javadoc.jar",
+    ):
+        (mods / name).touch()
+
+    result = run_harness(tmp_path, "-Action", "DetectMod", "-McDir", str(game))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not result.stderr
+    assert ANSI.sub("", result.stdout).strip() == "Installed:"
 
 
 @pytest.mark.parametrize(

@@ -864,7 +864,8 @@ function Get-InstalledModVersion {
     $modsDir = Join-Path $McDir 'mods'
     if (-not (Test-Path -LiteralPath $modsDir)) { return $null }
     $jar = Get-ChildItem -LiteralPath $modsDir -Filter '*.jar' -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -like 'pathmine-*.jar' -or $_.Name -like 'rtx-remix-renderer-*.jar' } |
+        Where-Object { $_.Name -eq 'pathmine.jar' -or $_.Name -eq 'rtx-remix-renderer.jar' -or
+                       $_.Name -like 'pathmine-*.jar' -or $_.Name -like 'rtx-remix-renderer-*.jar' } |
         Where-Object { $_.Name -notmatch '-(sources|dev|javadoc)\.jar$' } |
         Select-Object -First 1
     if ($jar) { return $jar.Name }
@@ -2371,7 +2372,8 @@ function Install-ModFiles {
     Copy-Item -LiteralPath $newJar -Destination $stagedPath -Force -ErrorAction Stop
 
     Get-ChildItem -LiteralPath (Join-Path $McDir 'mods') -Filter '*.jar' -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -like 'pathmine-*.jar' -or $_.Name -like 'rtx-remix-renderer-*.jar' } |
+        Where-Object { $_.Name -eq 'pathmine.jar' -or $_.Name -eq 'rtx-remix-renderer.jar' -or
+                       $_.Name -like 'pathmine-*.jar' -or $_.Name -like 'rtx-remix-renderer-*.jar' } |
         Where-Object { $_.FullName -ne $stagedPath -and $_.FullName -ne $finalPath } |
         ForEach-Object { Write-Info "Replacing old mod JAR: $($_.Name)"; Remove-Item -LiteralPath $_.FullName -Force }
 
@@ -2963,7 +2965,7 @@ function Invoke-Uninstall {
     } else {
         Write-Host ''
         Write-Host '  The following will be removed from each target:'
-        Write-Host "    - $($script:C_DIM)<mc>/mods/pathmine-*.jar$($script:C_RESET)"
+        Write-Host "    - $($script:C_DIM)<mc>/mods/pathmine.jar, pathmine-*.jar, rtx-remix-renderer.jar, rtx-remix-renderer-*.jar$($script:C_RESET)"
         Write-Host "    - $($script:C_DIM)<mc>/mods/fabric-api-$($script:FABRIC_API_VERSION).jar$($script:C_RESET) (Microsoft: only our exact version; Prism: all fabric-api-*)"
         Write-Host "    - $($script:C_DIM)<mc>/remix-sdk/, <mc>/rtx.conf, <mc>/.rtx-remix-version$($script:C_RESET)"
         Write-Host "    - $($script:C_DIM)<mc>/textures/water_normals_flipbook.dds, <mc>/textures/overcast_thunderstorm_bc6u.dds$($script:C_RESET)"
@@ -3043,7 +3045,8 @@ function Remove-ModArtifacts {
     if (-not (Test-Path -LiteralPath $McDir)) { return }
 
     Get-ChildItem -LiteralPath (Join-Path $McDir 'mods') -Filter '*.jar' -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -like 'pathmine-*.jar' -or $_.Name -like 'rtx-remix-renderer-*.jar' } |
+        Where-Object { $_.Name -eq 'pathmine.jar' -or $_.Name -eq 'rtx-remix-renderer.jar' -or
+                       $_.Name -like 'pathmine-*.jar' -or $_.Name -like 'rtx-remix-renderer-*.jar' } |
         ForEach-Object { Write-Info "Removing $($_.Name)"; Remove-Item -LiteralPath $_.FullName -Force }
 
     # Fabric API handling mirrors Install-FabricApi's scoping:

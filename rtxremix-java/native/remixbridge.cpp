@@ -1438,11 +1438,18 @@ Java_com_nvidia_rtxremix_RemixBridge_acquireConfigLayer(JNIEnv* env, jclass,
     jstring jPath, jfloat priority, jfloat blendThreshold)
 {
     if (!g_inited || !g_remix.AcquireConfigLayer) return 0;
+#ifdef _WIN32
     const char* path = env->GetStringUTFChars(jPath, nullptr);
+#else
+    const auto pathStorage = utf8Path(env, jPath);
+    const char* path = pathStorage.c_str();
+#endif
     remixapi_ConfigLayerHandle handle = nullptr;
     remixapi_ErrorCode rc = g_remix.AcquireConfigLayer(
         path, (float)priority, (float)blendThreshold, &handle);
+#ifdef _WIN32
     env->ReleaseStringUTFChars(jPath, path);
+#endif
     return (rc == REMIXAPI_ERROR_CODE_SUCCESS) ? (jlong)(uintptr_t)handle : 0;
 }
 
