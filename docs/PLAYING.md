@@ -75,9 +75,12 @@ runtime into the game folder before the game window appears, which can look
 like the game has frozen, especially on a hard drive. It happens once per
 version.
 
-Once you are in a world, the renderer compiles shaders and draws nothing until
-it finishes. A dark, flat, or half-built scene right after is expected. Let it
-settle before judging the picture.
+The first use of a new runtime requires shader compilation before its scene
+can render. On native Linux, the terrain-download screen waits for reported
+shader work to finish and frame times to settle. The hold is bounded, so it
+can release before compilation finishes. Windows and runtimes without shader
+telemetry use frame times alone. A dark, flat, or half-built scene can still
+appear after the screen closes; let it settle before judging the picture.
 
 The baseline PBR textures ship inside the mod JAR, so no separate baseline
 pack needs enabling. User packs override the built-in baseline.

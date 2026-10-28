@@ -17,9 +17,12 @@ import org.slf4j.LoggerFactory;
  * {@code DownloadingTerrainScreenMixin} begins a hold at vanilla's first close attempt and
  * keeps cancelling the close while {@link #keepScreen(long)} says so.
  *
- * <p>The hold ends after shader compilation and {@link #SETTLE_STREAK} consecutive frames
- * shorter than {@link #SLOW_FRAME_NANOS}. The burst has a {@link #MAX_HOLD_NANOS} limit,
- * with a separate {@link #MAX_SHADER_HOLD_NANOS} limit while the compiler is working. The
+ * <p>The hold ends after {@link #SETTLE_STREAK} consecutive frames shorter than
+ * {@link #SLOW_FRAME_NANOS}, or after the {@link #MAX_HOLD_NANOS} settling budget.
+ * On native Linux, the renderer samples optional shader telemetry only during a hold;
+ * pending work resets both the streak and that budget. Windows and runtimes without
+ * telemetry use frame timing alone. {@link #MAX_SHADER_HOLD_NANOS} caps the entire hold,
+ * including settling, so a compiler that never drains cannot keep the screen up forever. The
  * frame threshold sits above steady frame times on slow hardware and below the burst's own
  * frames, which measure 130 to 630 ms: a threshold near the steady frame time would send
  * every join on a slow machine to the cap.
@@ -41,7 +44,7 @@ public final class JoinBurstHold {
     static final int SETTLE_STREAK = 8;
     /** Maximum settling time after the last observed shader work. */
     static final long MAX_HOLD_NANOS = 6_000_000_000L;
-    /** Bound for a cold shader compilation before returning control to the player. */
+    /** Overall hold limit, including shader work and subsequent frame settling. */
     static final long MAX_SHADER_HOLD_NANOS = 120_000_000_000L;
 
     private final boolean enabled;

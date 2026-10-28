@@ -668,10 +668,8 @@ public class RtxRemixMod implements ClientModInitializer {
         }
         mod.remixFrameReadyToSubmit = false;
 
-        // The submit and blit below run whenever the renderer is initialized,
-        // including while RTX is switched off: they are what signals the VK->GL
-        // and GL->VK semaphores, and skipping them desynchronizes the pair
-        // across an off-to-on transition.
+        // Keep these callbacks active while RTX is off; blitVkImageToGL decides
+        // whether to acquire the scene image here or defer to presentFrameVk.
         if (renderer == null || !renderer.isInitialized()) {
             return;
         }
