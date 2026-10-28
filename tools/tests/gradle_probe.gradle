@@ -25,14 +25,8 @@ allprojects { project ->
             ['compileNativeWin64', 'compileNativeArm64', 'compileNativeLinux64'].each { name ->
                 def bridgeTask = tasks.named(name).get()
                 bridgeTask.enabled = true
-                bridgeTask.commandLine([project.property('publicationTestPython'), '-c', '''
-from pathlib import Path
-import sys
-for name in sys.argv[1:]:
-    output = Path(name)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(b"synthetic fresh bridge")
-'''] + bridgeTask.outputs.files.files*.absolutePath)
+                bridgeTask.commandLine([project.property('publicationTestPython'),
+                    file('fixtures/write_native_outputs.py').absolutePath] + bridgeTask.outputs.files.files*.absolutePath)
             }
         }
         tasks.register('publicationTestModel') {

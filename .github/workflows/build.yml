@@ -25,7 +25,7 @@ jobs:
           java-version: "21"
       - name: Install Linux bridge build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libgl-dev libglx-dev libegl-dev
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libgl-dev libglx-dev libegl-dev libopengl-dev
       - name: Build mod and Linux JNI tests
         if: runner.os == 'Linux'
         run: ./gradlew build testNativeLinux64 -Parch=linux64 --console=plain

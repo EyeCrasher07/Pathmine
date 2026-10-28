@@ -240,6 +240,15 @@ def gradle_project(tmp_path_factory: pytest.TempPathFactory) -> GradleProject:
     )
     fixtures = root / "fixtures"
     fixtures.mkdir()
+    (fixtures / "write_native_outputs.py").write_text(
+        "from pathlib import Path\n"
+        "import sys\n"
+        "for name in sys.argv[1:]:\n"
+        "    output = Path(name)\n"
+        "    output.parent.mkdir(parents=True, exist_ok=True)\n"
+        '    output.write_bytes(b"synthetic fresh bridge")\n',
+        encoding="utf-8",
+    )
     with zipfile.ZipFile(fixtures / "synthetic-remapped.jar", "w") as jar:
         jar.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n\n")
         jar.writestr("fabric.mod.json", '{"id":"synthetic-mod"}')

@@ -136,20 +136,21 @@ def test_runtime_textures_link_on_a_path_git_has_never_tracked():
     dependency = ElementTree.parse(REPO_ROOT / "packman/textures.packman.xml").find("dependency")
     assert dependency is not None
     assert dependency.attrib["linkPath"] == "../remix-runtime/textures"
-    ignored = subprocess.run(
-        ["git", "check-ignore", "--no-index", "--stdin"],
-        cwd=REPO_ROOT,
-        input="remix-runtime/textures\nremix-runtime/win64\nremix-runtime/arm64\nremix-runtime/linux64\n",
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    assert ignored.stdout.splitlines() == [
+    paths = [
         "remix-runtime/textures",
         "remix-runtime/win64",
         "remix-runtime/arm64",
         "remix-runtime/linux64",
     ]
+    input_paths = b"\0".join(os.fsencode(path) for path in paths) + b"\0"
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--no-index", "--stdin", "-z"],
+        cwd=REPO_ROOT,
+        input=input_paths,
+        capture_output=True,
+        check=True,
+    )
+    assert ignored.stdout == input_paths
     history = subprocess.run(
         ["git", "log", "--all", "--format=%h", "-1", "--", "remix-runtime"],
         cwd=REPO_ROOT,
@@ -185,15 +186,15 @@ def test_runtime_sdk_paths_are_ignored(tmp_path: Path, linked: bool):
             else:
                 staging.symlink_to(target, target_is_directory=True)
     ignored_paths = [path.parent.as_posix() if linked else path.as_posix() for path in paths]
+    input_paths = b"\0".join(os.fsencode(path) for path in ignored_paths) + b"\0"
     ignored = subprocess.run(
-        ["git", "check-ignore", "--no-index", "--stdin"],
+        ["git", "check-ignore", "--no-index", "--stdin", "-z"],
         cwd=tmp_path,
-        input="\n".join(ignored_paths) + "\n",
+        input=input_paths,
         capture_output=True,
-        text=True,
         check=True,
     )
-    assert ignored.stdout.splitlines() == ignored_paths
+    assert ignored.stdout == input_paths
     rejected = subprocess.run(["git", "add", "--", *ignored_paths], cwd=tmp_path, capture_output=True, text=True)
     assert rejected.returncode == 1, rejected.stderr
     subprocess.run(["git", "add", "--all"], cwd=tmp_path, check=True)
