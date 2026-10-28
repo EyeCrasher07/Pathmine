@@ -165,7 +165,9 @@ def test_runtime_textures_link_on_a_path_git_has_never_tracked():
 def test_runtime_sdk_paths_are_ignored(tmp_path: Path, linked: bool):
     shutil.copyfile(REPO_ROOT / ".gitignore", tmp_path / ".gitignore")
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
-    subprocess.run(["git", "config", "core.excludesFile", os.devnull], cwd=tmp_path, check=True)
+    excludes_file = tmp_path / ".git" / "empty-excludes"
+    excludes_file.write_bytes(b"")
+    subprocess.run(["git", "config", "core.excludesFile", str(excludes_file)], cwd=tmp_path, check=True)
     paths = [
         Path("remix-runtime/textures/example.dds"),
         Path("remix-runtime/win64/d3d9.dll"),
