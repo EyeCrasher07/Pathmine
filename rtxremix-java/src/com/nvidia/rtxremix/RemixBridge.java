@@ -61,6 +61,9 @@ public final class RemixBridge {
     /** Supplies the native framebuffer extent before scene capture; zero-sized frames are skipped. */
     public static native int beginFrame(int width, int height);
 
+    /** Returns queued or active shader compilations, or -1 when the runtime cannot report them. */
+    public static native int pendingShaderCompilationCount();
+
     /** Linux overlay input: position, button, wheel, GLFW key, Unicode character or focus. */
     public static native int injectOverlayInput(int type, int code, double x, double y);
 

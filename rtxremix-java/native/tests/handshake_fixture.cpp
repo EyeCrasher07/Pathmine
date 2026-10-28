@@ -57,6 +57,12 @@ static remixapi_ErrorCode releaseConfigLayer(remixapi_ConfigLayerHandle handle) 
 }
 
 #ifdef FIXTURE_handshake
+#ifndef FIXTURE_no_shader_counter
+extern "C" REMIXAPI uint32_t REMIXAPI_CALL remixinternal_GetShaderCompilationCount() {
+    return 7;
+}
+#endif
+
 extern "C" REMIXAPI remixapi_ErrorCode REMIXAPI_CALL remixapi_BeginFrame(uint32_t width, uint32_t height) {
     return width < (1u << 14) && height < (1u << 14)
         ? REMIXAPI_ERROR_CODE_SUCCESS : REMIXAPI_ERROR_CODE_INVALID_ARGUMENTS;

@@ -361,6 +361,8 @@ using GetNativeOverlay = remixapi_ErrorCode(REMIXAPI_CALL*)(remixapi_dxvk_Intero
 using InjectNativeOverlayInput = remixapi_ErrorCode(REMIXAPI_CALL*)(uint32_t, int32_t, double, double);
 static GetNativeOverlay g_getNativeOverlay = nullptr;
 static InjectNativeOverlayInput g_injectNativeOverlayInput = nullptr;
+using GetShaderCompilationCount = uint32_t(REMIXAPI_CALL*)();
+static GetShaderCompilationCount g_getShaderCompilationCount = nullptr;
 
 // ════════════════════════════════════════════════════════════════════════════
 // Helpers
@@ -585,6 +587,7 @@ static jint initializeRuntime(const bridge_platform::PathChar* dllPath)
     g_beginNativeFrame = nullptr;
     g_getNativeOverlay = nullptr;
     g_injectNativeOverlayInput = nullptr;
+    g_getShaderCompilationCount = nullptr;
     if (!g_remixDll) {
         return REMIXAPI_ERROR_CODE_LOAD_LIBRARY_FAILURE;
     }
@@ -612,6 +615,8 @@ static jint initializeRuntime(const bridge_platform::PathChar* dllPath)
                 bridge_platform::librarySymbol(g_remixDll, "remixapi_GetOverlayInteropInfo"));
         g_injectNativeOverlayInput = reinterpret_cast<InjectNativeOverlayInput>(
                 bridge_platform::librarySymbol(g_remixDll, "remixapi_InjectOverlayInput"));
+        g_getShaderCompilationCount = reinterpret_cast<GetShaderCompilationCount>(
+                bridge_platform::librarySymbol(g_remixDll, "remixinternal_GetShaderCompilationCount"));
         // ABI sanity check: every function pointer we rely on at runtime must be
         // populated. A partially-filled vtable indicates the loaded d3d9.dll is
         // from an older minor version that predates a tail-of-struct addition.
@@ -634,6 +639,7 @@ static jint initializeRuntime(const bridge_platform::PathChar* dllPath)
             g_beginNativeFrame = nullptr;
             g_getNativeOverlay = nullptr;
             g_injectNativeOverlayInput = nullptr;
+            g_getShaderCompilationCount = nullptr;
             bridge_platform::closeLibrary(g_remixDll);
             g_remixDll = nullptr;
             return REMIXAPI_ERROR_CODE_INCOMPATIBLE_VERSION;
@@ -792,6 +798,7 @@ Java_com_nvidia_rtxremix_RemixBridge_shutdown(JNIEnv*, jclass)
     g_beginNativeFrame = nullptr;
     g_getNativeOverlay = nullptr;
     g_injectNativeOverlayInput = nullptr;
+    g_getShaderCompilationCount = nullptr;
 #ifdef _WIN32
     uninstallCrashHandler();
 #endif
@@ -817,6 +824,14 @@ Java_com_nvidia_rtxremix_RemixBridge_beginFrame(JNIEnv*, jclass, jint width, jin
 #else
     return REMIXAPI_ERROR_CODE_INCOMPATIBLE_VERSION;
 #endif
+}
+
+JNIEXPORT jint JNICALL
+Java_com_nvidia_rtxremix_RemixBridge_pendingShaderCompilationCount(JNIEnv*, jclass)
+{
+    if (!g_inited || !g_getShaderCompilationCount) return -1;
+    const uint32_t count = g_getShaderCompilationCount();
+    return count <= INT32_MAX ? static_cast<jint>(count) : -1;
 }
 
 JNIEXPORT jint JNICALL

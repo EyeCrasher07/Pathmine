@@ -90,8 +90,8 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Remix renders into a Vulkan image that {@link GlInterop} imports into
  * OpenGL through {@code EXT_memory_object} and {@code EXT_semaphore}. Minecraft
- * composites its own GL output onto that shared image, and {@link
- * #presentFrameVk()} hands the result back to Remix to put on screen.
+ * composites its own GL output with that shared image. {@link #presentFrameVk()}
+ * owns the platform-specific presentation and synchronization path.
  */
 public class RemixRenderer {
 
@@ -735,7 +735,10 @@ public class RemixRenderer {
 
         ensureNativeFrame();
 
-        joinBurstHold.onFrame(System.nanoTime());
+        if (joinBurstHold.isHolding()) {
+            boolean compilingShaders = NATIVE_LINUX && remixApi.pendingShaderCompilationCount() > 0;
+            joinBurstHold.onFrame(System.nanoTime(), compilingShaders);
+        }
 
         if (!renderThreadNamed) {
             RemixAPI.tracyThreadName("Render");
@@ -761,12 +764,9 @@ public class RemixRenderer {
 
             // RTX disabled: hand all rendering back to vanilla's GL path. Skip every
             // scene-submission step below (particle task, camera, lights, chunks,
-            // entities, block entities, sky, atlas flush, Submit). The present path
-            // (RenderSystemMixin -> presentFrameVk -> blitGlToRemix) still runs
-            // unconditionally and composites vanilla's GL frame, exactly like the
-            // no-world case above. The finally block closes the frame (gc, endFrame,
-            // benchmark). VK<->GL semaphore signaling lives in the present path and is
-            // intentionally left untouched so off<->on transitions don't desync.
+            // entities, block entities, sky, atlas flush, Submit). presentFrameVk
+            // owns the remaining presentation and synchronization. The finally
+            // block closes the frame (gc, endFrame, benchmark).
             if (!RtxRemixMod.isRtxEnabled()) {
                 if (chunkManager != null) chunkManager.hideRetainedInstances();
                 // A payload prepared before the toggle holds world-space vertices from the
@@ -1351,10 +1351,11 @@ public class RemixRenderer {
     }
     
     /**
-     * Presents the frame through Remix, which owns the swapchain for as long as the
-     * renderer is initialized: this method replaces the GLFW buffer swap, so returning
-     * without calling present leaves the window frozen on the last presented image.
-     * A failed GL-to-Remix copy therefore still presents, and a failure is logged once
+     * Completes Remix's frame submission, semaphore synchronization and presentation,
+     * including frames without a scene. On Windows, Remix owns the swapchain and replaces
+     * the GLFW buffer swap, so returning without presenting freezes the window. Native
+     * Linux completes its offscreen frame here before the caller swaps the GL buffers.
+     * A failed interop step still attempts presentation, and a failure is logged once
      * per run rather than once per frame.
      */
     public void presentFrameVk() {
@@ -1422,10 +1423,14 @@ public class RemixRenderer {
     }
     
     /**
-     * Returns the GL texture ID containing the Remix output for this frame, or 0 when
-     * no interop texture exists this frame; the caller then skips compositing.
+     * Returns the GL texture ID containing the Remix scene for this frame, or 0 to skip
+     * scene compositing. Native Linux frames without a submitted scene defer image
+     * acquisition and synchronization to {@link #presentFrameVk()}.
      */
     public int blitVkImageToGL() {
+        if (NATIVE_LINUX && !submitFrameCalled) {
+            return 0;
+        }
         try (ProfileScope ignored = ProfileScope.begin("Interop.VKToGL")) {
             // must be called after Submit(), which allocates the image
             InteropInfo interopInfo = remixApi.dxvkGetInteropInfo();
