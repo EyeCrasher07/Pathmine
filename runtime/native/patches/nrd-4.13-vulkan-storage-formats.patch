@@ -1,0 +1,17 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4a4918a..ffcacf4 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -241,7 +241,11 @@ if(NOT NRD_DISABLE_SHADER_COMPILATION)
+     endif()
+ 
+     if(NRD_EMBEDS_SPIRV_SHADERS)
+-        set(SHADERMAKE_COMMANDS ${SHADERMAKE_COMMANDS} COMMAND ShaderMake -p SPIRV --compiler "${DXC_SPIRV_PATH}" ${SHADERMAKE_GENERAL_ARGS})
++        set(NRD_SPIRV_COMPILER_ARGS)
++        if(NOT WIN32)
++            set(NRD_SPIRV_COMPILER_ARGS --compilerOptions "-fspv-use-unknown-image-format")
++        endif()
++        set(SHADERMAKE_COMMANDS ${SHADERMAKE_COMMANDS} COMMAND ShaderMake -p SPIRV --compiler "${DXC_SPIRV_PATH}" ${SHADERMAKE_GENERAL_ARGS} ${NRD_SPIRV_COMPILER_ARGS})
+     endif()
+ 
+     if(NRD_EMBEDS_DXBC_SHADERS)

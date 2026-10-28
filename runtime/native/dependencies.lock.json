@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "runtime": {
+    "repository": "https://github.com/NVIDIAGameWorks/dxvk-remix",
+    "revision": "bbd74a1287c2fa887f4a2b0e46a1530177890b64",
+    "api": "0.6.6",
+    "upstreamFixes": [
+      {
+        "revision": "c1a891bf85dbda78cab979010089c5c9b4256a11",
+        "subject": "[REMIX-6230] Core fixes: pipeline-handle race, command-list recycle order, duplicate DLFG acquire wait"
+      },
+      {
+        "revision": "eada2cb93222157e613acf53558a9b05183b66fb",
+        "subject": "[REMIX-6295] Fix for eye material on viewmodels"
+      },
+      {
+        "revision": "c57f4644c2355b84ebeadce5f9ef9f4955ff5b63",
+        "subject": "[REMIX-6147] Fix Sample Best Lights (RTXDI) cube artifacts and best-light sampling bias"
+      },
+      {
+        "revision": "54b144a0b1925949a8a81ad81bddb8c4ee68a09e",
+        "subject": "Keep HL2RTX startup responsive",
+        "scope": "NGX worker initialization, capability publication, deferred DLSS resolution and first-camera setup. Adapted for native shared depth. Geometry-worker and USD thread-limit changes are not included."
+      }
+    ]
+  },
+  "sources": {
+    "dlss": {
+      "repository": "https://github.com/NVIDIA/DLSS",
+      "revision": "374959484e79a640feaba44c93ac8cfb0a03f5b5",
+      "nativeFeatureVersion": "310.9.1"
+    },
+    "nvmlHeaders": {
+      "repository": "https://github.com/NVIDIA/go-nvml",
+      "revision": "a80fd0d112d561866cfd67fe79bbc43e303d2b25",
+      "archiveSha256": "85fc2aa0c2bf032bbc537f6478205e85eddb259bfdae2b1f72f94bccb1c905ec"
+    },
+    "dxvkNative": {
+      "repository": "https://github.com/doitsujin/dxvk",
+      "revision": "cbd2206d72d3d9dd9941d5d868bb03a858e85f9b",
+      "archiveSha256": "c26e59f1cdf8d7ad4791a3f52c8ceb73d6a1f20723f0ea4562f2db697c497a6e"
+    },
+    "directxHeaders": {
+      "repository": "https://github.com/Joshua-Ashton/mingw-directx-headers",
+      "revision": "9df86f2341616ef1888ae59919feaa6d4fad693d",
+      "archiveSha256": "9c1b8bbfd2d6c758fac4d93c2808a46bc1eee429fe656b4f21b29e02615aa8aa"
+    },
+    "nrd": {
+      "repository": "https://github.com/NVIDIA-RTX/NRD",
+      "revision": "3edea46dafb29ce05c61cf839b396b291fdaddb6",
+      "version": "4.13.0",
+      "normalEncoding": 2,
+      "roughnessEncoding": 1,
+      "patches": [
+        {
+          "file": "patches/nrd-4.13-vulkan-storage-formats.patch",
+          "sha256": "184e2789a802bf077a3e47aab8ceb40ef360a2acee8094a557586be02ecb67cc"
+        }
+      ]
+    },
+    "shaderMake": {
+      "repository": "https://github.com/NVIDIA-RTX/ShaderMake",
+      "revision": "809711a598c380f582d94abd6b3faddf7a2846e4"
+    },
+    "nrdMathLib": {
+      "repository": "https://github.com/NVIDIA-RTX/MathLib",
+      "revision": "ce3142d54f5ab523bb39c184d905ad9786af0620"
+    },
+    "openusd": {
+      "repository": "https://github.com/PixarAnimationStudios/OpenUSD",
+      "revision": "363a7c8da8d1937072a5f0989e91faf72eb1fa76",
+      "version": "25.11",
+      "python": false,
+      "imaging": false,
+      "monolithic": true
+    },
+    "oneTbb": {
+      "repository": "https://github.com/oneapi-src/oneTBB",
+      "revision": "9afd759b72c0c233cd5ea3c3c06b0894c9da9c54",
+      "version": "2021.12.0"
+    },
+    "spirvTools": {
+      "repository": "https://github.com/KhronosGroup/SPIRV-Tools",
+      "revision": "b8c3b64b63758042576f6853d7f0abe9251460fa",
+      "archiveSha256": "de63c9d0b6a45322203a4f281b6b967ab1263fd27e0fb8e0db400f42ef2aef1f"
+    },
+    "spirvHeaders": {
+      "repository": "https://github.com/KhronosGroup/SPIRV-Headers",
+      "revision": "86f980c731e62ae4eaf383d320449d71687936bf",
+      "archiveSha256": "d11ef011d0788ed002d7cc96224d298f43b126cabe887cd4d46199cb19ecf386"
+    },
+    "minecraftApi": {
+      "repository": "https://github.com/NVIDIAGameWorks/rtx-remix-minecraft",
+      "revision": "170197a63d233f8462e921d231cf5124feb08ffe",
+      "version": "0.16.0",
+      "header": "rtxremix-java/native/include/remix_c.h",
+      "headerSha256": "afaea2187faf8e71001de0fb4869789e405c2b00e35a5c38c16d7da7c9bee9d7"
+    },
+    "rtxdi": {
+      "repository": "https://github.com/NVIDIA-RTX/RTXDI",
+      "revision": "639c99fd0d8df6bf81ea9730d71a071d6eff5dba"
+    }
+  },
+  "tools": {
+    "slang": {
+      "version": "2026.20",
+      "url": "https://github.com/shader-slang/slang/releases/download/v2026.20/slang-2026.20-linux-x86_64.tar.gz",
+      "sha256": "e863e568c204810d6e8bc31852f056aef6763c55ea9925db2db7affa060347c9",
+      "library": "lib/libslang-compiler.so"
+    },
+    "dxc": {
+      "version": "1.9.2609",
+      "url": "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/linux_dxc_2026_09_28.x86_x64.tar.gz",
+      "sha256": "96faadc7f5c282d2ffda49804beb4c3ee38127bc252b723234e3c5cdf7aa39a1"
+    },
+    "cmake": {
+      "version": "3.31.8",
+      "url": "https://github.com/Kitware/CMake/releases/download/v3.31.8/cmake-3.31.8-linux-x86_64.tar.gz",
+      "sha256": "630615d8e98ac33eba7fbe472626dff5c899c85af3c024585ae109166a6909d0"
+    }
+  },
+  "linuxDistribution": {
+    "architecture": "x86_64",
+    "glibc": "2.36",
+    "glibcxx": "3.4.30",
+    "cxxabi": "1.3.13"
+  },
+  "originalAssetPackages": {
+    "rtx-remix-fonts": "2",
+    "rtx-remix-omni_core_materials": "16",
+    "rtx-remix-ngx_sdk_dlfg": "5",
+    "rtx-remix-ngx_sdk_dlnr": "2"
+  }
+}

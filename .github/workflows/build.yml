@@ -1,0 +1,56 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  mod:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install Linux bridge build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libgl-dev libglx-dev libegl-dev
+      - name: Build mod and Linux JNI tests
+        if: runner.os == 'Linux'
+        run: ./gradlew build testNativeLinux64 -Parch=linux64 --console=plain
+      - name: Build mod and Windows JNI bridge
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\gradlew.bat build test --console=plain
+
+  native-platform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Install platform build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build clang libvulkan-dev
+      - name: Configure native platform and pinned header dependencies
+        run: >-
+          cmake -S runtime/native -B runtime/_NativePlatform -G Ninja
+          -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++
+          -DREMIX_MINECRAFT_API_HEADER="$GITHUB_WORKSPACE/rtxremix-java/native/include/remix_c.h"
+      - name: Build native platform
+        run: cmake --build runtime/_NativePlatform --parallel 2
+      - name: Test CPU platform services
+        run: >-
+          ctest --test-dir runtime/_NativePlatform --output-on-failure
+          -R '^native-(runtime-distribution-checker|api016-header|api-header|shared-library|platform-services|mapped-file|directory-watch|keybind|math)$'

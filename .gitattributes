@@ -1,0 +1,20 @@
+# Java sources are stored and checked out LF, so an edit never renormalises
+# a file's other lines into the diff.
+*.java text eol=lf
+
+# PowerShell must stay CRLF: the CI runners are Windows PowerShell 5.1.
+*.ps1 text eol=crlf
+# cmd.exe resolves call/goto labels by scanning lines, which misfires on LF-only
+# scripts, so batch entry points such as Packman's packman.cmd check out CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# POSIX entry points must remain executable scripts with LF line endings.
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Checksummed public contracts must survive Windows checkout unchanged.
+LICENSE text eol=lf
+LICENSES/* text eol=lf
+*.h text eol=lf
+*.patch text eol=lf

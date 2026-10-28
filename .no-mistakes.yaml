@@ -1,0 +1,22 @@
+# Executable settings are trusted only after this file reaches the default branch.
+agent: codex
+commands:
+  lint: uv run --locked --project tools python tools/check_repository.py
+  test: uv run --locked --project tools python tools/check_repository.py --build
+rebase:
+  strategy: merge
+protected_paths:
+  - LICENSE
+auto_fix:
+  rebase: 0
+  review: 0
+  test: 0
+  document: 0
+  lint: 0
+  ci: 0
+test:
+  evidence:
+    store_in_repo: false
+    attach_media: false
+pr:
+  publish_intent: false

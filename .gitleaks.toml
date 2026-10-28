@@ -1,0 +1,27 @@
+[extend]
+useDefault = true
+
+# These are code expressions and a synthetic parser fixture, not credentials.
+# Match both the exact source path and the harmless value/expression.
+[[allowlists]]
+description = "D3D9 texture-filter enum assignments"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''(^|/)runtime/src/d3d9/d3d9_device\.cpp$''']
+regexTarget = "line"
+regexes = ['''^\s*key\.(MagFilter|MinFilter) = D3DTEXF_ANISOTROPIC;\s*$''']
+
+[[allowlists]]
+description = "xxHash SIMD shuffle expressions"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''(^|/)runtime/src/util/xxHash/xxhash\.h$''']
+regexTarget = "line"
+regexes = ['''^\s*__m(256|512)i const data_key_(lo|hi)\s*=\s*_mm(256|512)_shuffle_epi32\s*\([^;]+\);\s*$''']
+
+[[allowlists]]
+description = "Deliberately artificial environment-file parser input"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''(^|/)tools/tests/benchmark/test_env_file\.py$''']
+regexes = ['''^s3cr3t=with=equals$''']
