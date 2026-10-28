@@ -44,7 +44,7 @@ flowchart LR
 
 ## Development status
 
-- **Current focus:** stable native Windows and Linux operation on 1.21.1. The skylight-loading fix is merged into `main` and awaits a new release; RTX toggling and native shutdown issues remain under investigation.
+- **Current focus:** stable native Windows and Linux operation on 1.21.1. Fixes for skylight loading, waiting for shaders when joining worlds on Linux, and switching RTX on Linux are merged into `main` and await a new release; initial camera setup and native shutdown remain under investigation.
 - **Upstream progress:** the [shared Java facade is now compatible with Java 8](https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/commit/779e4e52080132f6332c8d0e1bc5e6600723762c), and an [experimental Windows Forge 1.12.2 bootstrap](https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/commit/72e5dcefd468dcd20623615d26234181c18bd1e8) is available. The bootstrap does not yet capture terrain, entities, particles, or sky.
 - **Next:** follow upstream version and loader integrations, adapt them for native Windows and Linux, and verify each combination before adding it to supported builds. Java 8 and the additional versions are not part of the current Pathmine release.
 
