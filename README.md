@@ -1,143 +1,140 @@
 # Pathmine
-Path-traced Minecraft Java through NVIDIA RTX Remix
 
-Pathmine preserves NVIDIA's renderer and Minecraft scene capture while adding a
-native Linux runtime. The current target is **Minecraft Java 1.21.1 with Fabric**.
-The Linux x86_64 port is experimental; the original Windows release is the visual
-comparison reference. Support for other game versions and loaders is future work.
+Path-traced Minecraft Java runtime powered by NVIDIA RTX Remix.
 
-This is an independent project, not an official NVIDIA release. Complete visual
-parity, long-session stability and broad hardware support are still being tested.
-[Current scope and known limitations](docs/NATIVE_LINUX_PORT.md) distinguish
-verified behavior from unfinished work.
+[![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-6B8E23.svg)](#)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D4.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Experimental-orange.svg)](#)
 
-## Install
+Pathmine preserves NVIDIA's renderer and Minecraft scene capture while adding a native Linux runtime for Minecraft Java. The project targets Minecraft Java 1.21.1 with Fabric and focuses on a native Linux port of the RTX Remix runtime.
 
-Packaged preview builds are distributed through [GitHub Releases](https://github.com/EyeCrasher07/Pathmine/releases).
-Choose the JAR for your operating system, install Fabric for Minecraft Java
-1.21.1 and the matching Fabric API, and place both JARs in the instance's `mods/`
-directory. Use one Pathmine JAR per instance. Its native renderer and runtime
-resources are bundled and extracted on first launch. Any compatible launcher
-can run it. See [playing and troubleshooting](docs/PLAYING.md) for details.
+> Experimental project. Not an official NVIDIA release.
 
-Preview downloads target Windows and Linux x86_64. See the player guide for
-[platform requirements](docs/PLAYING.md#what-you-need). Preview builds retain
-the experimental scope and limitations described above.
+## Overview
 
-## Build
+Pathmine combines a Java-side Minecraft integration layer with a native runtime and renderer stack that is closer to the original RTX Remix pipeline. The goal is to preserve the visual model of RTX Remix while enabling a Linux-native execution path for Minecraft Java.
 
-Clone the source and pinned public renderer dependencies:
+The repository contains:
 
-```sh
-git clone --recurse-submodules https://github.com/EyeCrasher07/Pathmine.git
-cd Pathmine
+- Java-side integration and game logic
+- JNI bridge and runtime access layer
+- native runtime and renderer sources
+- packaging and developer tooling
+- validation and repository checks
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Minecraft Java] --> B[Fabric / Java Integration]
+    B --> C[JNI Boundary]
+    C --> D[Native Runtime]
+    D --> E[RTX Remix / Renderer]
+    E --> F[Frame Output]
 ```
 
-Use JDK 21 and set `JAVA_HOME` to that JDK. On Linux, install CMake, Ninja, a C++17 compiler and OpenGL/GLX/EGL
-development libraries, then build the lightweight mod and JNI tests:
+## Scope and limitations
 
-```sh
+- Target: Minecraft Java 1.21.1 + Fabric
+- Linux x86_64 runtime is experimental
+- Windows remains the reference platform for visual comparison
+- Other versions and loaders are future work
+- Full parity, runtime stability, and broad hardware compatibility are still under validation
+
+## Features
+
+- RTX Remix rendering pipeline integration
+- Java + native runtime bridge
+- Linux runtime port
+- Windows and Linux packaging workflows
+- Native validation and developer tooling
+- Dependency pinning and runtime staging workflow
+
+## Quick start
+
+### Install
+
+1. Download the latest release from [GitHub Releases](https://github.com/EyeCrasher07/Pathmine/releases)
+2. Install Fabric for Minecraft Java 1.21.1
+3. Install the matching Fabric API
+4. Place both JARs in your instance's `mods/` directory
+
+### Build
+
+```bash
+git clone --recurse-submodules https://github.com/EyeCrasher07/Pathmine.git
+cd Pathmine
 ./gradlew build testNativeLinux64 -Parch=linux64
 ```
 
-This creates `build/libs/pathmine-*.jar`; it does **not** contain a renderer.
-Build the native runtime with the pinned dependencies using
-[runtime/native/README.md](runtime/native/README.md), then stage its installed
-`remix-sdk/` directory as `remix-runtime/linux64/`. Stage the two runtime DDS
-textures pinned in `packman/textures.packman.xml` as `remix-runtime/textures/`.
-The [native port guide](docs/NATIVE_LINUX_PORT.md) covers the integration boundary.
-
-The native Packman bootstrap can fetch those textures from the repository root:
-
-```sh
-bash runtime/scripts-common/packman/packman pull packman/textures.packman.xml
-```
-
-```sh
-./gradlew package -Parch=linux64
-```
-
-On Windows, use Visual Studio C++ build tools and JDK 21:
+### Windows build
 
 ```powershell
 .\gradlew.bat build test
 .\gradlew.bat package -Parch=win64
 ```
 
-The Windows build fetches the original pinned NVIDIA runtime through public
-Packman. Its source base differs from the Linux port; see the dependency lock
-and port guide before making parity claims. Building the Windows renderer from
-source is described in [runtime/README.md](runtime/README.md).
+## Repository layout
 
-Distribution JARs are written to `build/distributions/`; follow [Install](#install)
-to use one. Prism is used by the optional developer tools, not required by the mod.
+```text
+Pathmine/
+├── src/                # Minecraft integration and JVM tests
+├── rtxremix-java/      # Java API facade and JNI bridge
+├── runtime/            # Renderer sources, native tests, and runtime code
+├── tools/              # Developer tools, checks, automation, and launch helpers
+├── docs/               # User and developer documentation
+├── packman/            # Runtime and dependency pins
+├── packaging/          # Packaging, defaults, profiles, and licenses
+├── gradle/             # Gradle wrapper configuration
+├── build.gradle        # Root project build file
+├── settings.gradle     # Gradle settings
+├── LICENSE             # GPL-3.0 project license
+├── NOTICE              # Notice file
+├── THIRD_PARTY_NOTICES.md
+├── README.md
+├── CONTRIBUTING.md
+├── AGENTS.md
+├── .gitmodules
+├── .gitignore
+├── .gitattributes
+└── docs/
+```
 
-The [Windows build guide](docs/GETTING_STARTED.md#other-commands) covers the
-`package-windows` workflow. Linux release builds and extracted-payload checks
-follow the [native distribution guide](runtime/native/README.md#distribution-build).
-Release assets are published after their package and platform checks,
-separately from source PR integration.
+## Development
 
-## Source layout
-
-| Path | Purpose |
-| --- | --- |
-| `src/` | Minecraft integration, resources and JVM tests |
-| `rtxremix-java/` | Java API facade and Windows/Linux JNI bridge |
-| `runtime/` | NVIDIA renderer sources, shaders, platform port and native tests |
-| `gradle/`, `build.gradle` | Pinned Gradle wrapper and mod build |
-| `packman/` | Public SDK and runtime texture package pins |
-| `packaging/` | Installer, runtime defaults, material profiles and licenses |
-| `tools/` | Developer launcher, parity probes, benchmarks and repository checks |
-| `docs/` | Player, resource-pack and development guides |
-
-## Development checks
-
-```sh
+```bash
 python3 tools/check_repository.py
 ./gradlew build testNativeLinux64 -Parch=linux64
 uv run --locked --project tools rtx check --tests
 ```
 
-Native renderer and GPU checks are documented in
-[runtime/native/README.md](runtime/native/README.md). Stop clients using a staged
-runtime before rebuilding or replacing it. Hosted CI checks the repository,
-developer tools, mod and JNI boundary; it does not establish GPU or gameplay parity.
+Additional developer and runtime details:
 
-Before publishing a branch, install [no-mistakes](https://github.com/kunchenguid/no-mistakes),
-run `no-mistakes init` once, commit your changes, then use:
+- [runtime/native/README.md](runtime/native/README.md)
+- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
+- [docs/NATIVE_LINUX_PORT.md](docs/NATIVE_LINUX_PORT.md)
 
-```sh
-no-mistakes axi run --intent "Describe the requested change and its constraints"
-```
-
-The repository configuration supplies repeatable checks after it is merged into
-the default branch. no-mistakes deliberately does not trust executable settings
-introduced only by an unmerged branch. Review findings and CI results before
-merging. Keep fixes as additional commits and never force-push a shared branch.
-
-## Guides
+## Documentation
 
 - [Playing and troubleshooting](docs/PLAYING.md)
 - [Getting started with the developer tools](docs/GETTING_STARTED.md)
-- [Settings](docs/SETTINGS.md), [commands and controls](docs/IN_GAME_GUIDE.md)
-- [Resource packs](docs/RESOURCE_PACKS.md), [camera paths](docs/CAMERA_PATHS.md)
-- [Contributing](CONTRIBUTING.md) and [issue tracker](https://github.com/EyeCrasher07/Pathmine/issues)
+- [Settings](docs/SETTINGS.md)
+- [Commands and controls](docs/IN_GAME_GUIDE.md)
+- [Resource packs](docs/RESOURCE_PACKS.md)
+- [Camera paths](docs/CAMERA_PATHS.md)
+- [Contributing](CONTRIBUTING.md)
 
-## License and credits
+## License
 
-The repository's original [GPL-3.0 license](LICENSE) is preserved. Upstream
-components keep their copyright notices and applicable licenses: the Minecraft
-mod and Gradle wrapper derive from Apache-2.0 sources
-([license text](LICENSES/Apache-2.0.txt)); the renderer includes zlib and MIT
-components ([runtime/LICENSE](runtime/LICENSE), [runtime/LICENSE-MIT](runtime/LICENSE-MIT)).
-[NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and component
-license files record the remaining terms. Vendor SDKs and optional downloaded
-assets retain their own terms; the root license does not replace them.
+This project is licensed under GPL-3.0, while upstream components retain their own applicable licenses. See:
 
-Source bases and selective NVIDIA fixes are recorded in
-[runtime/native/dependencies.lock.json](runtime/native/dependencies.lock.json).
-Thanks to NVIDIA, the DXVK authors and the contributors to these upstream projects.
+- [LICENSE](LICENSE)
+- [NOTICE](NOTICE)
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)
+- [runtime/LICENSE](runtime/LICENSE)
 
-NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR
-MICROSOFT. Minecraft, NVIDIA, GeForce and RTX are trademarks of their respective owners.
+---
+
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
