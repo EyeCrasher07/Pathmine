@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ElementTree
@@ -138,15 +139,16 @@ def test_runtime_textures_link_on_a_path_git_has_never_tracked():
     ignored = subprocess.run(
         ["git", "check-ignore", "--no-index", "--stdin"],
         cwd=REPO_ROOT,
-        input="remix-runtime/textures/example.dds\nremix-runtime/win64/d3d9.dll\nremix-runtime/arm64/d3d9.dll\n",
+        input="remix-runtime/textures\nremix-runtime/win64\nremix-runtime/arm64\nremix-runtime/linux64\n",
         capture_output=True,
         text=True,
         check=True,
     )
     assert ignored.stdout.splitlines() == [
-        "remix-runtime/textures/example.dds",
-        "remix-runtime/win64/d3d9.dll",
-        "remix-runtime/arm64/d3d9.dll",
+        "remix-runtime/textures",
+        "remix-runtime/win64",
+        "remix-runtime/arm64",
+        "remix-runtime/linux64",
     ]
     history = subprocess.run(
         ["git", "log", "--all", "--format=%h", "-1", "--", "remix-runtime"],
@@ -156,6 +158,47 @@ def test_runtime_textures_link_on_a_path_git_has_never_tracked():
         check=True,
     )
     assert not history.stdout.strip()
+
+
+@pytest.mark.parametrize("linked", [False, True], ids=["directories", "links"])
+def test_runtime_sdk_paths_are_ignored(tmp_path: Path, linked: bool):
+    shutil.copyfile(REPO_ROOT / ".gitignore", tmp_path / ".gitignore")
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    subprocess.run(["git", "config", "core.excludesFile", os.devnull], cwd=tmp_path, check=True)
+    paths = [
+        Path("remix-runtime/textures/example.dds"),
+        Path("remix-runtime/win64/d3d9.dll"),
+        Path("remix-runtime/arm64/d3d9.dll"),
+        Path("remix-runtime/linux64/libremix.so"),
+    ]
+    for path in paths:
+        staging = tmp_path / path.parent
+        target = tmp_path / "build" / path.parent if linked else staging
+        target.mkdir(parents=True, exist_ok=True)
+        (target / path.name).write_bytes(b"synthetic runtime input")
+        if linked:
+            staging.parent.mkdir(parents=True, exist_ok=True)
+            if os.name == "nt":
+                subprocess.run(
+                    ["cmd.exe", "/d", "/c", "mklink", "/J", str(staging), str(target)], check=True, capture_output=True
+                )
+            else:
+                staging.symlink_to(target, target_is_directory=True)
+    ignored_paths = [path.parent.as_posix() if linked else path.as_posix() for path in paths]
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--no-index", "--stdin"],
+        cwd=tmp_path,
+        input="\n".join(ignored_paths) + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert ignored.stdout.splitlines() == ignored_paths
+    rejected = subprocess.run(["git", "add", "--", *ignored_paths], cwd=tmp_path, capture_output=True, text=True)
+    assert rejected.returncode == 1, rejected.stderr
+    subprocess.run(["git", "add", "--all"], cwd=tmp_path, check=True)
+    tracked = subprocess.run(["git", "ls-files"], cwd=tmp_path, capture_output=True, text=True, check=True)
+    assert tracked.stdout.splitlines() == [".gitignore"]
 
 
 def test_runtime_staging_is_incremental_and_config_owns_one_file(gradle_project: GradleProject):
