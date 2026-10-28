@@ -99,7 +99,7 @@ if(REMIX_BUILD_SHADERS)
     ${shaderEntrypoints} "${runtimeRoot}/scripts-common/compile_shaders.py")
   add_custom_command(OUTPUT "${shaderOutput}/native-build.stamp"
     BYPRODUCTS ${shaderByproducts}
-    COMMAND ${shaderCommand}
+    COMMAND ${shaderCommand} -force
     COMMAND "${CMAKE_COMMAND}" -E touch "${shaderOutput}/native-build.stamp"
     DEPENDS ${shaderSources} ${shaderVendorHeaders} "${runtimeRoot}/scripts-common/compile_shaders.py"
       "${runtimeRoot}/scripts-common/depfile.py" "${runtimeRoot}/scripts-common/shader_xxd.py"

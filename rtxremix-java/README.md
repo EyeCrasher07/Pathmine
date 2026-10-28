@@ -98,8 +98,9 @@ Repository-wide contribution rules and sign-off requirements are in
 
 Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
-The shim is covered by the repository's Apache License, Version 2.0.
-See [LICENSE](../LICENSE), [NOTICE](../NOTICE), and
-[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for the applicable terms and
-attributions.
+The repository's root [LICENSE](../LICENSE) is GPL-3.0. This upstream-derived
+shim retains its Apache License, Version 2.0 terms in
+[LICENSES/Apache-2.0.txt](../LICENSES/Apache-2.0.txt).
+[NOTICE](../NOTICE) and [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)
+record the applicable terms and attributions for upstream and vendor components.
 

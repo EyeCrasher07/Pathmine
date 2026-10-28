@@ -27,8 +27,13 @@ from pathlib import Path
 args = sys.argv[1:]
 output = Path(args[args.index('-o') + 1])
 inputs = [Path(name) for name in json.loads(os.environ['FIXTURE_SHADER_INPUTS'])]
+for argument in args:
+    if argument.startswith('-I'):
+        header = Path(argument[2:]) / 'NRD.hlsli'
+        if header.is_file():
+            inputs.append(header)
 output.parent.mkdir(parents=True, exist_ok=True)
-output.write_text(hashlib.sha256(b''.join(path.read_bytes() for path in inputs)).hexdigest())
+output.write_text(hashlib.sha256(Path(__file__).read_bytes() + b''.join(path.read_bytes() for path in inputs)).hexdigest())
 for dependency_option in ('--depfile', '-depfile'):
     if dependency_option in args:
         Path(args[args.index(dependency_option) + 1]).write_text(str(output) + ': ' + ' '.join(map(str, inputs)) + '\n')
@@ -87,12 +92,26 @@ class ShaderDependencyTests(unittest.TestCase):
             slangc.chmod(0o755)
             slang_library = tools / "libslang.so"
             slang_library.write_text("synthetic compiler library input")
+            alternate_glslang = tools / "alternate-glslang"
+            alternate_slangc = tools / "alternate-slangc"
+            for compiler in (alternate_glslang, alternate_slangc):
+                compiler.write_text(COMPILER + "\n\n")
+                compiler.chmod(0o755)
+                os.utime(compiler, (1, 1))
+            alternate_library = tools / "alternate-libslang.so"
+            alternate_library.write_text("synthetic alternate compiler library input")
+            os.utime(alternate_library, (1, 1))
+            alternate_nrd = root / "alternate-nrd"
+            alternate_header = alternate_nrd / "Shaders/Include/NRD.hlsli"
+            alternate_header.parent.mkdir(parents=True)
+            alternate_header.write_text("alternate fixture header\n")
+            os.utime(alternate_header, (1, 1))
             validator = tools / "spirv-val"
             validator.touch(mode=0o755)
             log = root / "compiler.log"
             environment = dict(
                 os.environ,
-                FIXTURE_SHADER_INPUTS=json.dumps(list(map(str, [local, slang_local, *headers]))),
+                FIXTURE_SHADER_INPUTS=json.dumps(list(map(str, [local, slang_local, *headers[:-1]]))),
                 FIXTURE_SHADER_LOG=str(log),
             )
             build = root / "build"
@@ -174,6 +193,26 @@ class ShaderDependencyTests(unittest.TestCase):
                     if name == "shader_xxd.py":
                         self.assertEqual(previous_header + b"\n", slang_header.read_bytes())
                     self.assertEqual(before + 2, len(compile_shaders()))
+            for name, selection, count, changed_outputs in (
+                ("REMIX_GLSLANG", alternate_glslang, len(initial), (output, build / "glsl_shaders/fixture.h")),
+                ("REMIX_SLANGC", alternate_slangc, 2, (build / "rtx_shaders/fixture_slang.spv", slang_header)),
+                ("REMIX_SLANG_LIBRARY", alternate_library, 2, ()),
+                ("REMIX_NRD_SOURCE_DIR", alternate_nrd, 2, (output, slang_header)),
+            ):
+                with self.subTest(selection=name):
+                    selected_input = alternate_header if name == "REMIX_NRD_SOURCE_DIR" else selection
+                    self.assertLess(selected_input.stat().st_mtime, output.stat().st_mtime)
+                    before = len(log.read_text().splitlines())
+                    previous_outputs = {path: path.read_bytes() for path in changed_outputs}
+                    run("cmake", "-S", str(native), "-B", str(build), f"-D{name}={selection}")
+                    compiled = compile_shaders()
+                    for path, previous_bytes in previous_outputs.items():
+                        self.assertNotEqual(previous_bytes, path.read_bytes())
+                    self.assertEqual(before + count, len(compiled))
+                    stamp = build / "rtx_shaders/native-build.stamp"
+                    stamp_time = stamp.stat().st_mtime_ns
+                    self.assertEqual(before + count, len(compile_shaders()))
+                    self.assertEqual(stamp_time, stamp.stat().st_mtime_ns)
 
 
 if __name__ == "__main__":

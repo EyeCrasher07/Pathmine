@@ -1,8 +1,7 @@
 # Playing
 
-This guide takes you from a downloaded archive to a path-traced world. It is
-written for players. You do not need development tools, and you do not need to
-install Java, Fabric, or the RTX Remix runtime yourself.
+This guide covers playing a packaged Windows build of Pathmine. Its installer
+sets up Java, Fabric, and the RTX Remix runtime for you.
 
 ## What You Need
 
@@ -22,7 +21,7 @@ This is a beta. The mod began as a technology showcase and was tuned against
 one showcase world, built for this project by
 [BlockWorks](https://www.blockworks.uk/), so the places that world visits are
 where it looks and runs best. It ships with
-[known issues](https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/issues),
+[known issues](https://github.com/EyeCrasher07/Pathmine/issues),
 and there are bugs yet to be found. Two things to know before a long session:
 
 - **Other mods.** It has had limited testing alongside other mods, and mods
@@ -36,9 +35,11 @@ fixed.
 
 ## Download
 
-Download the release archive from the
-[Releases page](https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/releases/latest)
-and extract it.
+Pathmine's first publication contains source, without a packaged binary
+release. Get the source from the
+[Pathmine repository](https://github.com/EyeCrasher07/Pathmine) and follow the
+[Windows build instructions](GETTING_STARTED.md) to create a `releaseArchive`,
+then extract it.
 
 ## Which Launcher
 
@@ -211,7 +212,7 @@ Paste either path into the File Explorer address bar to open the folder.
 ## Reporting a Bug
 
 Open an issue on the project's
-[issue tracker](https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/issues)
+[issue tracker](https://github.com/EyeCrasher07/Pathmine/issues)
 for anything about the mod: what
 is in the world and how it looks, the settings screen, `/rtx` commands and
 keys, lighting profiles, the installer, and crashes. Denoiser, DLSS, or
@@ -242,7 +243,9 @@ following:
 
 ## Updating
 
-Download the new release archive, extract it, and run `install.bat` again. It
+Build an updated archive using the
+[Windows build instructions](GETTING_STARTED.md#other-commands), extract it,
+and run `install.bat` again. It
 preselects Upgrade, which updates the launcher that already has the mod; choose
 Install to use the other launcher. Your worlds, settings, and any lighting
 profiles you have edited are kept, and profiles added by the new release are

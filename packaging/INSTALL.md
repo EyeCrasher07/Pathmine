@@ -1,5 +1,9 @@
 # Pathmine
 
+Pathmine is currently published as source. Create a Windows installation
+archive using the
+[build instructions](https://github.com/EyeCrasher07/Pathmine/blob/main/docs/GETTING_STARTED.md#other-commands).
+
 This archive installs a Fabric mod that renders Minecraft Java Edition 1.21.1
 through NVIDIA RTX Remix. It sets up a launcher, Java,
 Fabric, the mod, and the RTX Remix runtime for you.
@@ -50,7 +54,7 @@ This is a beta. The mod began as a technology showcase and was tuned against
 one showcase world, built for this project by BlockWorks
 (<https://www.blockworks.uk/>), so the places that world visits are where it
 looks and runs best. It ships with known issues, tracked at
-<https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/issues>, and there are
+<https://github.com/EyeCrasher07/Pathmine/issues>, and there are
 bugs yet to be found. It has had limited testing alongside other
 mods, it targets Minecraft 1.21.1 only, and blocks, mobs, dimensions, and
 situations the showcase never reaches have had less care. When something
@@ -66,7 +70,8 @@ breaks, report it (see below); that is how it gets fixed.
 | `INSTALLER_REFERENCE.md` | The installer modes, every flag, headless and CI use, and what the installer verifies before it downloads anything. |
 | `mods\` | The mod, one JAR |
 | `migrate_resource_packs.ps1` | Migrates legacy baseline packs and resource-pack ordering |
-| `LICENSE`, `NOTICE` | The project's Apache License 2.0 and its attribution notices |
+| `LICENSE` | The repository's GPL-3.0 license |
+| `LICENSES\Apache-2.0.txt`, `NOTICE` | The upstream mod and JNI shim's Apache-2.0 terms and attribution notices |
 | `THIRD_PARTY_NOTICES.md`, `packaging\licenses\` | The third-party components the mod JAR carries, chiefly the RTX Remix runtime, and their license texts |
 
 The mod file name ends in the version, a build timestamp, and a short commit
@@ -104,7 +109,7 @@ launch.
 `INSTALLER_REFERENCE.md` covers the rest: the modes, every flag, headless and
 CI use, and what the installer verifies before it downloads anything. To add
 the mod to a Fabric instance you already have instead, see
-<https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/blob/main/docs/PLAYING.md#installing-without-the-installer>.
+<https://github.com/EyeCrasher07/Pathmine/blob/main/docs/PLAYING.md#installing-without-the-installer>.
 
 ## First Launch
 
@@ -123,7 +128,7 @@ and crash reports. Both boxes start checked, and closing the guide keeps them as
 they are. The mod itself collects no data. You can change both later in the
 Permissions tab of the RTX Remix Graphics Settings menu. What is sent is listed
 at
-<https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/blob/main/docs/PLAYING.md#crash-reports-and-privacy>.
+<https://github.com/EyeCrasher07/Pathmine/blob/main/docs/PLAYING.md#crash-reports-and-privacy>.
 
 Once you are in a world, the renderer compiles shaders and draws nothing until
 it finishes. A dark, flat, or half-built scene right after is expected. Let it
@@ -147,8 +152,9 @@ enabled. For a direct comparison, type `/rtx off`, look around, then `/rtx on`.
 
 ## Updating
 
-Download the new archive from
-<https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/releases/latest>,
+Build an updated archive from the
+[Pathmine source](https://github.com/EyeCrasher07/Pathmine) using the
+[build instructions](https://github.com/EyeCrasher07/Pathmine/blob/main/docs/GETTING_STARTED.md#other-commands),
 extract it, and run `install.bat` again. It
 preselects Upgrade and replaces the mod and its supporting files in the
 launcher that already has them. Launcher, Minecraft, Fabric, and other options
@@ -235,7 +241,7 @@ if you are wiping it anyway.
 
 Problems inside the game rather than inside the installer, such as a black
 screen or a flat-looking world, are covered by the player guide at
-<https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/blob/main/docs/PLAYING.md#troubleshooting>.
+<https://github.com/EyeCrasher07/Pathmine/blob/main/docs/PLAYING.md#troubleshooting>.
 One case worth checking first: with other mods installed, a crash,
 a black screen, or wrong rendering is most often a conflict with a mod that
 changes rendering or chunk loading. Remove the other mods and try again, and
@@ -243,7 +249,7 @@ say which mod was involved in your report.
 
 ## Reporting A Bug
 
-Open an issue at <https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/issues>
+Open an issue at <https://github.com/EyeCrasher07/Pathmine/issues>
 for anything about the mod: what
 is in the world and how it looks, the settings screen, `/rtx` commands and
 keys, lighting profiles, the installer, and crashes. Denoiser, DLSS, or
@@ -277,14 +283,17 @@ the following:
 
 The full guides, covering the settings screen, the commands, camera paths, and
 how to give a map its own lighting, live with the project's source at
-<https://github.com/NVIDIAGameWorks/rtx-remix-minecraft>.
+<https://github.com/EyeCrasher07/Pathmine>.
 
 ## License
 
-The mod is licensed under the Apache License, Version 2.0; see `LICENSE` and
-`NOTICE`. The mod JAR also carries the RTX Remix runtime, whose third-party and
-NVIDIA components are listed, with their license terms, in
-`THIRD_PARTY_NOTICES.md`.
+The repository's root `LICENSE` is
+[GPL-3.0](https://github.com/EyeCrasher07/Pathmine/blob/main/LICENSE).
+The upstream mod and JNI shim retain their
+[Apache-2.0 terms](https://github.com/EyeCrasher07/Pathmine/blob/main/LICENSES/Apache-2.0.txt)
+in `LICENSES\Apache-2.0.txt`, with attribution in `NOTICE`. The bundled NVIDIA
+runtime and third-party components retain their own license terms, recorded in
+`THIRD_PARTY_NOTICES.md` and `packaging\licenses\`.
 
 NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR
 MICROSOFT. Minecraft is a trademark of Mojang Synergies AB.
