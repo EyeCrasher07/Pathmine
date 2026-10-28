@@ -60,6 +60,9 @@ public final class NativeBridgeTest {
 
         RemixAPI api = RemixAPI.load(args[4]);
         if (!api.isInitialized()) throw new AssertionError("Handshake was not recorded");
+        if (api.pendingShaderCompilationCount() != 7) {
+            throw new AssertionError("Shader compilation count changed across JNI");
+        }
         checkConfigLayerPaths(api, bridge.getParent());
         api.beginFrame(1280, 720);
         api.beginFrame(0, 0);
@@ -87,6 +90,14 @@ public final class NativeBridgeTest {
         if (RemixBridge.injectOverlayInput(3, 65, 1, 2) != ErrorCode.NOT_INITIALIZED) {
             throw new AssertionError("Shutdown retained the native overlay input entry point");
         }
+        if (RemixBridge.pendingShaderCompilationCount() != -1) {
+            throw new AssertionError("Shutdown retained the shader compilation entry point");
+        }
+        RemixAPI withoutCounter = RemixAPI.load(args[5]);
+        if (withoutCounter.pendingShaderCompilationCount() != -1) {
+            throw new AssertionError("Runtime without a shader counter reused a stale entry point");
+        }
+        withoutCounter.shutdown();
         System.out.println("Native ELF JNI bridge: " + boundMethods
                 + " methods bound; loader/version/ownership checks passed (no renderer exercised)");
     }

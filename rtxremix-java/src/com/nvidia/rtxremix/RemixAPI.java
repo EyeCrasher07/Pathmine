@@ -184,6 +184,12 @@ public class RemixAPI {
         }
     }
 
+    /** Returns queued or active shader compilations, or -1 when the runtime cannot report them. */
+    public int pendingShaderCompilationCount() {
+        checkInitialized();
+        return RemixBridge.pendingShaderCompilationCount();
+    }
+
     /** Feeds the native Linux overlay. Key codes and modifier masks use GLFW conventions. */
     public void injectOverlayInput(int type, int code, double x, double y) {
         checkInitialized();

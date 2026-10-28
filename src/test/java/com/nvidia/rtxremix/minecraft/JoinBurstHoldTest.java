@@ -18,7 +18,7 @@ class JoinBurstHoldTest {
     private static long frames(JoinBurstHold hold, long now, long... intervalsMs) {
         for (long ms : intervalsMs) {
             now += ms * MS;
-            hold.onFrame(now);
+            hold.onFrame(now, false);
         }
         return now;
     }
@@ -26,7 +26,7 @@ class JoinBurstHoldTest {
     private static JoinBurstHold begun() {
         JoinBurstHold hold = new JoinBurstHold(true);
         hold.begin(START);
-        hold.onFrame(START);
+        hold.onFrame(START, false);
         return hold;
     }
 
@@ -91,7 +91,7 @@ class JoinBurstHoldTest {
         JoinBurstHold hold = new JoinBurstHold(true);
         long now = frames(hold, START, 20, 20, 20, 20, 20, 20, 20, 20, 20);
         hold.begin(now);
-        hold.onFrame(now);
+        hold.onFrame(now, false);
         now = frames(hold, now, 20, 20, 20, 20, 20, 20, 20);
         assertTrue(hold.keepScreen(now), "the streak starts at begin, not at the first frame ever seen");
     }
@@ -104,5 +104,56 @@ class JoinBurstHoldTest {
 
         hold.begin(now);
         assertTrue(hold.keepScreen(now));
+    }
+
+    @Test
+    void fastFramesDoNotReleaseTheScreenWhileShadersCompile() {
+        JoinBurstHold hold = begun();
+        long now = START;
+        for (int i = 0; i < 500; i++) {
+            now += 20 * MS;
+            hold.onFrame(now, true);
+            assertTrue(hold.keepScreen(now));
+        }
+
+        now = frames(hold, now, 20, 20, 20, 20, 20, 20, 20);
+        assertTrue(hold.keepScreen(now));
+        now = frames(hold, now, 20);
+        assertFalse(hold.keepScreen(now));
+    }
+
+    @Test
+    void moreShaderWorkRestartsTheSettleStreak() {
+        JoinBurstHold hold = begun();
+        long now = frames(hold, START, 20, 20, 20, 20, 20, 20, 20);
+        hold.onFrame(now + 20 * MS, true);
+        now = frames(hold, now + 20 * MS, 20, 20, 20, 20, 20, 20, 20);
+        assertTrue(hold.keepScreen(now));
+        assertTrue(hold.isHolding());
+        now = frames(hold, now, 20);
+        assertFalse(hold.keepScreen(now));
+    }
+
+    @Test
+    void shaderWaitHasABoundedTimeout() {
+        JoinBurstHold hold = begun();
+        long last = START + JoinBurstHold.MAX_SHADER_HOLD_NANOS - MS;
+        hold.onFrame(last, true);
+        assertTrue(hold.keepScreen(last));
+        hold.onFrame(last + MS, true);
+        assertFalse(hold.keepScreen(last + MS));
+        assertFalse(hold.isHolding());
+    }
+
+    @Test
+    void aNewJoinDoesNotInheritThePreviousShaderWait() {
+        JoinBurstHold hold = begun();
+        hold.onFrame(START + MS, true);
+        long now = START + 100_000 * MS;
+        hold.begin(now);
+        hold.onFrame(now, false);
+        assertTrue(hold.keepScreen(now));
+        now = frames(hold, now, 20, 20, 20, 20, 20, 20, 20, 20);
+        assertFalse(hold.keepScreen(now));
     }
 }

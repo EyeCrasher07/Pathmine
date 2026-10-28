@@ -735,7 +735,10 @@ public class RemixRenderer {
 
         ensureNativeFrame();
 
-        joinBurstHold.onFrame(System.nanoTime());
+        if (joinBurstHold.isHolding()) {
+            boolean compilingShaders = NATIVE_LINUX && remixApi.pendingShaderCompilationCount() > 0;
+            joinBurstHold.onFrame(System.nanoTime(), compilingShaders);
+        }
 
         if (!renderThreadNamed) {
             RemixAPI.tracyThreadName("Render");
@@ -1426,6 +1429,10 @@ public class RemixRenderer {
      * no interop texture exists this frame; the caller then skips compositing.
      */
     public int blitVkImageToGL() {
+        // Native frames without a submitted scene acquire their image in the present path.
+        if (NATIVE_LINUX && !submitFrameCalled) {
+            return 0;
+        }
         try (ProfileScope ignored = ProfileScope.begin("Interop.VKToGL")) {
             // must be called after Submit(), which allocates the image
             InteropInfo interopInfo = remixApi.dxvkGetInteropInfo();

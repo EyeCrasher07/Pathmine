@@ -17,8 +17,9 @@ import org.slf4j.LoggerFactory;
  * {@code DownloadingTerrainScreenMixin} begins a hold at vanilla's first close attempt and
  * keeps cancelling the close while {@link #keepScreen(long)} says so.
  *
- * <p>The hold ends after {@link #SETTLE_STREAK} consecutive frames shorter than
- * {@link #SLOW_FRAME_NANOS}, or at {@link #MAX_HOLD_NANOS} so nobody is ever trapped. The
+ * <p>The hold ends after shader compilation and {@link #SETTLE_STREAK} consecutive frames
+ * shorter than {@link #SLOW_FRAME_NANOS}. The burst has a {@link #MAX_HOLD_NANOS} limit,
+ * with a separate {@link #MAX_SHADER_HOLD_NANOS} limit while the compiler is working. The
  * frame threshold sits above steady frame times on slow hardware and below the burst's own
  * frames, which measure 130 to 630 ms: a threshold near the steady frame time would send
  * every join on a slow machine to the cap.
@@ -38,14 +39,18 @@ public final class JoinBurstHold {
     static final long SLOW_FRAME_NANOS = 100_000_000L;
     /** Consecutive fast frames that end the hold. */
     static final int SETTLE_STREAK = 8;
-    /** Longest the screen stays up beyond vanilla's close. */
+    /** Maximum settling time after the last observed shader work. */
     static final long MAX_HOLD_NANOS = 6_000_000_000L;
+    /** Bound for a cold shader compilation before returning control to the player. */
+    static final long MAX_SHADER_HOLD_NANOS = 120_000_000_000L;
 
     private final boolean enabled;
     private boolean holding;
     private long holdStartNanos;
+    private long settleStartNanos;
     private long lastFrameNanos;
     private int fastStreak;
+    private boolean shadersCompiling;
 
     public JoinBurstHold(boolean enabled) {
         this.enabled = enabled;
@@ -58,13 +63,27 @@ public final class JoinBurstHold {
         }
         holding = true;
         holdStartNanos = nowNanos;
+        settleStartNanos = nowNanos;
         lastFrameNanos = 0L;
         fastStreak = 0;
+        shadersCompiling = false;
     }
 
-    /** Records a rendered frame that ended at {@code nowNanos}. */
-    public void onFrame(long nowNanos) {
+    /** Whether the renderer still needs to sample join readiness. */
+    public boolean isHolding() {
+        return holding;
+    }
+
+    /** Records frame timing and actual pending shader work on the render thread. */
+    public void onFrame(long nowNanos, boolean compilingShaders) {
         if (!holding) {
+            return;
+        }
+        shadersCompiling = compilingShaders;
+        if (compilingShaders) {
+            settleStartNanos = nowNanos;
+            fastStreak = 0;
+            lastFrameNanos = nowNanos;
             return;
         }
         if (lastFrameNanos != 0L) {
@@ -84,7 +103,11 @@ public final class JoinBurstHold {
      * @return true to cancel the close and keep the screen up
      */
     public boolean keepScreen(long nowNanos) {
-        if (holding && nowNanos - holdStartNanos >= MAX_HOLD_NANOS) {
+        if (holding && nowNanos - holdStartNanos >= MAX_SHADER_HOLD_NANOS) {
+            holding = false;
+            LOGGER.warn("World-join shader wait exceeded {} s; releasing the terrain-download screen",
+                    MAX_SHADER_HOLD_NANOS / 1_000_000_000L);
+        } else if (holding && !shadersCompiling && nowNanos - settleStartNanos >= MAX_HOLD_NANOS) {
             holding = false;
             LOGGER.info("World-join burst did not settle within {} s; releasing the terrain-download screen",
                     MAX_HOLD_NANOS / 1_000_000_000L);

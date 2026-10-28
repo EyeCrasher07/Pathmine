@@ -6,13 +6,14 @@ if(NOT EXISTS "${REMIX_JOML_JAR}")
     message(FATAL_ERROR "Set REMIX_JOML_JAR to the facade's existing JOML jar to run JNI tests")
 endif()
 
-foreach(fixture IN ITEMS missing_export incompatible incomplete handshake)
+foreach(fixture IN ITEMS missing_export incompatible incomplete handshake handshake_no_counter)
     add_library(test_${fixture} SHARED handshake_fixture.cpp)
     target_compile_features(test_${fixture} PRIVATE cxx_std_17)
     target_include_directories(test_${fixture} PRIVATE .. ../include)
     target_compile_definitions(test_${fixture} PRIVATE FIXTURE_${fixture})
     set_target_properties(test_${fixture} PROPERTIES OUTPUT_NAME "test-${fixture}")
 endforeach()
+target_compile_definitions(test_handshake_no_counter PRIVATE FIXTURE_handshake FIXTURE_no_shader_counter)
 
 file(GLOB wrapper_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../../src/com/nvidia/rtxremix/*.java")
 set(test_classes "${CMAKE_CURRENT_BINARY_DIR}/classes")
@@ -31,5 +32,5 @@ add_test(NAME native-jni-bridge
                 -cp "${test_classes}:${REMIX_JOML_JAR}" NativeBridgeTest
                 "$<TARGET_FILE:remixbridge>" "$<TARGET_FILE:test_missing_export>"
                 "$<TARGET_FILE:test_incompatible>" "$<TARGET_FILE:test_incomplete>"
-                "$<TARGET_FILE:test_handshake>")
+                "$<TARGET_FILE:test_handshake>" "$<TARGET_FILE:test_handshake_no_counter>")
 set_tests_properties(native-jni-bridge PROPERTIES TIMEOUT 30)
