@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<!-- SPDX-FileCopyrightText: Copyright (c) 2026 EyeCrasher. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<properties>
+<comment>RTX Remix debug views. Signed normals use -1..1, material values 0..1 and radiance 0..8.</comment>
+<entry key="view.count">16</entry>
+<entry key="view.0">final</entry>
+<entry key="view.1">geometry_normal</entry>
+<entry key="view.2">shading_normal</entry>
+<entry key="view.3">diffuse_albedo</entry>
+<entry key="view.4">roughness</entry>
+<entry key="view.5">specular_albedo</entry>
+<entry key="view.6">noisy_direct_diffuse</entry>
+<entry key="view.7">noisy_direct_specular</entry>
+<entry key="view.8">noisy_indirect_diffuse</entry>
+<entry key="view.9">noisy_indirect_specular</entry>
+<entry key="view.10">denoised_direct_diffuse</entry>
+<entry key="view.11">denoised_direct_specular</entry>
+<entry key="view.12">denoised_indirect_diffuse</entry>
+<entry key="view.13">denoised_indirect_specular</entry>
+<entry key="view.14">white_noise</entry>
+<entry key="view.15">blue_noise</entry>
+<entry key="final.index">0</entry>
+<entry key="geometry_normal.index">15</entry>
+<entry key="geometry_normal.min">-1</entry>
+<entry key="geometry_normal.max">1</entry>
+<entry key="geometry_normal.firstHit">True</entry>
+<entry key="shading_normal.index">16</entry>
+<entry key="shading_normal.min">-1</entry>
+<entry key="shading_normal.max">1</entry>
+<entry key="shading_normal.firstHit">True</entry>
+<entry key="diffuse_albedo.index">23</entry>
+<entry key="diffuse_albedo.max">1</entry>
+<entry key="diffuse_albedo.firstHit">True</entry>
+<entry key="roughness.index">25</entry>
+<entry key="roughness.max">1</entry>
+<entry key="roughness.firstHit">True</entry>
+<entry key="specular_albedo.index">90</entry>
+<entry key="specular_albedo.max">1</entry>
+<entry key="specular_albedo.firstHit">True</entry>
+<entry key="noisy_direct_diffuse.index">100</entry>
+<entry key="noisy_direct_diffuse.max">8</entry>
+<entry key="noisy_direct_diffuse.firstHit">False</entry>
+<entry key="noisy_direct_specular.index">101</entry>
+<entry key="noisy_direct_specular.max">8</entry>
+<entry key="noisy_direct_specular.firstHit">False</entry>
+<entry key="noisy_indirect_diffuse.index">106</entry>
+<entry key="noisy_indirect_diffuse.max">8</entry>
+<entry key="noisy_indirect_diffuse.firstHit">False</entry>
+<entry key="noisy_indirect_specular.index">107</entry>
+<entry key="noisy_indirect_specular.max">8</entry>
+<entry key="noisy_indirect_specular.firstHit">False</entry>
+<entry key="denoised_direct_diffuse.index">120</entry>
+<entry key="denoised_direct_diffuse.max">8</entry>
+<entry key="denoised_direct_diffuse.firstHit">False</entry>
+<entry key="denoised_direct_specular.index">121</entry>
+<entry key="denoised_direct_specular.max">8</entry>
+<entry key="denoised_direct_specular.firstHit">False</entry>
+<entry key="denoised_indirect_diffuse.index">124</entry>
+<entry key="denoised_indirect_diffuse.max">8</entry>
+<entry key="denoised_indirect_diffuse.firstHit">False</entry>
+<entry key="denoised_indirect_specular.index">125</entry>
+<entry key="denoised_indirect_specular.max">8</entry>
+<entry key="denoised_indirect_specular.firstHit">False</entry>
+<entry key="white_noise.index">41</entry>
+<entry key="white_noise.max">1</entry>
+<entry key="white_noise.firstHit">False</entry>
+<entry key="blue_noise.index">42</entry>
+<entry key="blue_noise.max">1</entry>
+<entry key="blue_noise.firstHit">False</entry>
+</properties>

@@ -1,0 +1,8 @@
+{
+  global:
+    remixapi_InitializeLibrary;
+    remixapi_BeginFrame;
+    remixapi_GetOverlayInteropInfo;
+    remixapi_InjectOverlayInput;
+  local: *;
+};

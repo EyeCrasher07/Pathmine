@@ -1,0 +1,39 @@
+{
+    "schemaVersion": 1,
+    "id": "rtx-remix-renderer",
+    "version": "${version}",
+    "name": "Pathmine",
+    "description": "Renders Minecraft through NVIDIA RTX Remix path tracing. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.",
+    "authors": [
+        "EyeCrasher07",
+        "NVIDIA"
+    ],
+    "contact": {
+        "homepage": "https://github.com/EyeCrasher07/Pathmine",
+        "sources": "https://github.com/EyeCrasher07/Pathmine",
+        "issues": "https://github.com/EyeCrasher07/Pathmine/issues"
+    },
+    "license": "GPL-3.0-only",
+    "environment": "*",
+    "entrypoints": {
+        "preLaunch": [
+            "com.nvidia.rtxremix.minecraft.WorkerPoolCap"
+        ],
+        "main": [
+            "com.nvidia.rtxremix.minecraft.RtxRemixCommonMod"
+        ],
+        "client": [
+            "com.nvidia.rtxremix.minecraft.RtxRemixMod"
+        ]
+    },
+    "mixins": [
+        "rtx-remix-renderer.mixins.json"
+    ],
+    "accessWidener": "rtx-remix-renderer.accesswidener",
+    "depends": {
+        "fabricloader": ">=0.16.5",
+        "fabric-api": ">=0.116.10+1.21.1",
+        "minecraft": "1.21.1",
+        "java": ">=21"
+    }
+}

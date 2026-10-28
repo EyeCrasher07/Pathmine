@@ -1,0 +1,41 @@
+# Pinned public dependencies for the original NVIDIA renderer.
+
+[submodule "runtime/include/vulkan"]
+	path = runtime/include/vulkan
+	url = https://github.com/KhronosGroup/Vulkan-Headers
+
+[submodule "runtime/submodules/rtxdi"]
+	path = runtime/submodules/rtxdi
+	url = https://github.com/NVIDIA-RTX/RTXDI.git
+
+[submodule "runtime/submodules/rtxcr"]
+	path = runtime/submodules/rtxcr
+	url = https://github.com/NVIDIA-RTX/RTXCR-Material-Library.git
+
+[submodule "runtime/submodules/nrc"]
+	path = runtime/submodules/nrc
+	url = https://github.com/NVIDIAGameWorks/Neural-Radiance-Cache.git
+
+[submodule "runtime/submodules/nvapi"]
+	path = runtime/submodules/nvapi
+	url = https://github.com/NVIDIA/nvapi.git
+
+[submodule "runtime/submodules/Detours"]
+	path = runtime/submodules/Detours
+	url = https://github.com/microsoft/Detours.git
+
+[submodule "runtime/submodules/xess"]
+	path = runtime/submodules/xess
+	url = https://github.com/intel/xess.git
+
+[submodule "runtime/include/MathLib/External/sse2neon"]
+	path = runtime/include/MathLib/External/sse2neon
+	url = https://github.com/DLTcollab/sse2neon.git
+
+[submodule "runtime/submodules/dlss"]
+	path = runtime/submodules/dlss
+	url = https://github.com/NVIDIA/DLSS.git
+
+[submodule "runtime/submodules/sharc"]
+	path = runtime/submodules/sharc
+	url = https://github.com/NVIDIAGameWorks/Spatial-Hash-Radiance-Cache.git
