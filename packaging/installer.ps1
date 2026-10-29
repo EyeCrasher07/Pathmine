@@ -419,17 +419,13 @@ function Test-PathLengthBudget {
     <#
       Best-effort MAX_PATH-class check. Windows legacy API caps at 260
       characters unless long-path-aware mode is opted into (manifest +
-      registry), which we don't assume. The worst-case path we build is
-      the instance mods jar:
-        $PrismDataDir\instances\Pathmine\.minecraft\mods\pathmine-fabric-26.3-0.2.0-alpha.1-windows-x64.jar
-      which adds ~122 fixed chars on top of $PrismDataDir. If the user's
-      data dir starts out long (deep personal path, substituted drive
-      letter, OneDrive redirect, etc.) we could bust 260 and see opaque
-      cryptic errors mid-install.
+      registry), which we don't assume. The probe approximates an instance
+      mod path; actual JAR names and dependency paths vary, so it cannot
+      guarantee every path will fit. Deep data directories or OneDrive
+      redirects can leave too little room and cause cryptic install errors.
     #>
     param([string]$PrismDataDir)
     if (-not $PrismDataDir) { return }
-    # Conservative sample path we know will be constructed.
     $probe = Join-Path $PrismDataDir "instances\$($script:PRISM_INSTANCE_NAME)\.minecraft\mods\pathmine-$($script:APP_VERSION)-000000000000-0000000.jar"
     if ($probe.Length -gt 248) {
         Write-Warn "Prism data dir path is long ($($PrismDataDir.Length) chars). Some install paths will exceed Windows' legacy 260-char MAX_PATH limit:"
@@ -1201,9 +1197,8 @@ function Get-InstallStatus {
     <#
       Coarse one-word status to drive the main menu's default action:
         'install'   : nothing installed anywhere
-        'upgrade'   : installed somewhere, version differs from package
-        'repair'    : installed somewhere, version equals package (exact
-                      filename match incl. timestamp + git hash)
+        'upgrade'   : installed somewhere, filename differs from package
+        'repair'    : installed somewhere, exact filename match with package
         'no-package': we can't tell because dist/mods/ is empty or ambiguous
       When the user has BOTH launchers with different versions, 'upgrade'
       takes precedence over 'repair'.

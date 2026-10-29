@@ -177,8 +177,8 @@ clients the developer tools launch.
 | `-PbenchmarkJfrThrowables=true` | Adds exception and error throw events to that recording |
 | `-PbenchmarkQuickPlayWorld=<name>` | Loads a single-player world on launch |
 
-`mod_version` lives in `gradle.properties`; the build appends a timestamp, the
-short commit hash, and a dirty marker to it.
+For mod versions and JAR filenames, see the
+[build and packaging commands](GETTING_STARTED.md#other-commands).
 
 ## JVM Arguments
 

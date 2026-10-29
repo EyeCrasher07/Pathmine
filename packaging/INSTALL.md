@@ -69,11 +69,9 @@ before playing.
 | `LICENSES\Apache-2.0.txt`, `NOTICE` | The upstream mod and JNI shim's Apache-2.0 terms and attribution notices |
 | `THIRD_PARTY_NOTICES.md`, `packaging\licenses\` | The third-party components the mod JAR carries, chiefly the RTX Remix runtime, and their license texts |
 
-Distribution filenames identify the loader, Minecraft version, mod version,
-and platform, for example `pathmine-fabric-26.3-0.2.0-alpha.1-windows-x64.jar`.
-Keep the complete filename for bug reports. The package metadata also records
-the source revision. Windows packages ending in `windows-x64-arm64` carry both
-architectures; single-architecture packages carry only their named runtime.
+See the [packaging guide](https://github.com/EyeCrasher07/Pathmine/blob/main/docs/GETTING_STARTED.md#other-commands)
+for JAR filenames and target architectures. Keep the whole name for bug reports.
+The matching runtime is unpacked on first launch.
 
 ## Detailed installation
 
@@ -259,7 +257,7 @@ sure which it is, report it on this project and it will be moved.
 Rendering problems are hard to act on without specifics, so include all of
 the following:
 
-1. The mod file name, from the `mods\` folder. It identifies the exact build.
+1. The complete mod file name, from the `mods\` folder.
 2. Which launcher you used, Prism or Microsoft.
 3. Your GPU and driver version, from the NVIDIA app or `nvidia-smi`.
 4. Whether a laptop display is driven by the built-in graphics chip, from

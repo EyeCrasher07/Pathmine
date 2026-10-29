@@ -4,6 +4,7 @@
 #include <array>
 #include <cstring>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -365,7 +366,12 @@ namespace {
         : (frame & 1 ? api::REMIXAPI_SUBMIT_INTEROP_BIT_DISABLE_CPU_WAIT_FOR_VK_SUBMIT : 0);
       success(session.table.Submit(&submit));
       session.waitForClient = !(frame++ & 1);
+      const auto exported = session.interopInfo();
       pixels = reader.readAndPresent(session);
+      for (int fd : { exported.rendererDoneFd, exported.clientDoneFd, exported.imageFd, exported.depthFd }) {
+        require(fd < 0 || fcntl(fd, F_GETFD) != -1,
+          "OpenGL import consumed a borrowed runtime interop descriptor");
+      }
     };
     for (uint32_t i = 0; i < 8; ++i) { step(); }
     require(color(pixels, 1) > 200, "C API renderer lost the green texture or mutated state after an invalid output argument");
