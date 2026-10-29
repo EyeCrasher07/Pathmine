@@ -424,7 +424,8 @@ namespace dxvk::native {
       if (!info || !result || info->sType != REMIXAPI_STRUCT_TYPE_INITIALIZE_LIBRARY_INFO) {
         return REMIXAPI_ERROR_CODE_INVALID_ARGUMENTS;
       }
-      if (info->version != kVersion) {
+      if (REMIXAPI_VERSION_GET_MAJOR(info->version) != REMIXAPI_VERSION_GET_MAJOR(kVersion)
+          || REMIXAPI_VERSION_GET_MINOR(info->version) != REMIXAPI_VERSION_GET_MINOR(kVersion)) {
         return REMIXAPI_ERROR_CODE_INCOMPATIBLE_VERSION;
       }
       std::lock_guard<std::mutex> lock(s_mutex);
