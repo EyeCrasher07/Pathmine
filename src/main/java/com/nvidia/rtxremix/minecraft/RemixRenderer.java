@@ -1214,6 +1214,10 @@ public class RemixRenderer {
             float worldFov = (float) client.gameRenderer.getFov(camera, tickDelta, true);
             int width = client.getWindow().getFramebufferWidth();
             int height = client.getWindow().getFramebufferHeight();
+            // The first world frame can precede vanilla's FOV initialization.
+            if (!prepareCameraProjection(worldFov, width, height, weatherRenderer)) {
+                return;
+            }
             float aspect = (float) width / (float) height;
             if (weatherRenderer != null) {
                 weatherRenderer.updateCamera(
@@ -1256,6 +1260,18 @@ public class RemixRenderer {
         } catch (Exception e) {
             LOGGER.error("Error updating camera", e);
         }
+    }
+
+    static boolean prepareCameraProjection(
+            float fieldOfView, int width, int height, RemixWeatherRenderer weatherRenderer) {
+        if (Float.isFinite(fieldOfView) && fieldOfView > 0.0f && fieldOfView < 180.0f
+                && width > 0 && height > 0) {
+            return true;
+        }
+        if (weatherRenderer != null) {
+            weatherRenderer.beginCaptureFrame(null);
+        }
+        return false;
     }
 
     ViewDistanceFade getViewDistanceFade() {
