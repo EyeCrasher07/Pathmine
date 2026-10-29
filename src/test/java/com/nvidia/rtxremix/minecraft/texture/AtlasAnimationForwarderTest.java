@@ -4,7 +4,6 @@
  */
 package com.nvidia.rtxremix.minecraft.texture;
 
-import net.minecraft.util.Identifier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +11,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.minecraft.resources.Identifier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -24,17 +24,17 @@ class AtlasAnimationForwarderTest {
 
     @Test
     void addPatchIgnoresSpritesOutsideTheBlockAtlasAllowList() throws Exception {
-        Identifier blockSprite = Identifier.of("minecraft", "block/lava_still");
-        Identifier guiSprite = Identifier.of("minecraft", "gui/sprites/icon");
+        Identifier blockSprite = Identifier.fromNamespaceAndPath("minecraft", "block/lava_still");
+        Identifier guiSprite = Identifier.fromNamespaceAndPath("minecraft", "gui/sprites/icon");
 
         AtlasAnimationForwarder.init(Map.of(), Set.of(blockSprite));
         AtlasAnimationForwarder.beginAtlasUpload(BlockTextureManager.BLOCK_ATLAS_ID);
 
         try {
-            AtlasAnimationForwarder.addPatch(guiSprite, 1, 2, 0, 0, 4, 4, 4, 4, 0L, 16);
+            AtlasAnimationForwarder.addPatch(guiSprite, 1, 2, 4, 4, 0, 0, 0.0f, 0, 0L, 16);
             assertEquals(0, pendingPatchCount());
 
-            AtlasAnimationForwarder.addPatch(blockSprite, 1, 2, 0, 0, 4, 4, 4, 4, 0L, 16);
+            AtlasAnimationForwarder.addPatch(blockSprite, 1, 2, 4, 4, 0, 0, 0.0f, 0, 0L, 16);
             assertEquals(1, pendingPatchCount());
         } finally {
             AtlasAnimationForwarder.endAtlasUpload();
@@ -43,14 +43,14 @@ class AtlasAnimationForwarderTest {
 
     @Test
     void addPatchIgnoresAllowedSpriteIdsFromOtherAtlases() throws Exception {
-        Identifier blockSprite = Identifier.of("minecraft", "block/lava_still");
-        Identifier particleAtlas = Identifier.of("minecraft", "textures/atlas/particles.png");
+        Identifier blockSprite = Identifier.fromNamespaceAndPath("minecraft", "block/lava_still");
+        Identifier particleAtlas = Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/particles.png");
 
         AtlasAnimationForwarder.init(Map.of(), Set.of(blockSprite));
         AtlasAnimationForwarder.beginAtlasUpload(particleAtlas);
 
         try {
-            AtlasAnimationForwarder.addPatch(blockSprite, 1, 2, 0, 0, 4, 4, 4, 4, 0L, 16);
+            AtlasAnimationForwarder.addPatch(blockSprite, 1, 2, 4, 4, 0, 0, 0.0f, 0, 0L, 16);
             assertEquals(0, pendingPatchCount());
         } finally {
             AtlasAnimationForwarder.endAtlasUpload();

@@ -5,14 +5,14 @@ This guide covers optional Windows installation archives built using the
 For preview JAR downloads and installation with any compatible launcher, see
 [Install](https://github.com/EyeCrasher07/Pathmine#install).
 
-This archive installs a Fabric mod that renders Minecraft Java Edition 1.21.1
+This archive installs a Fabric mod that renders Minecraft Java Edition 26.3
 through NVIDIA RTX Remix. It sets up a launcher, Java,
 Fabric, the mod, and the RTX Remix runtime for you.
 
 ## What You Need
 
 - Windows 10 or 11, x64 or ARM64.
-- Minecraft Java Edition 1.21.1, on a Microsoft account that owns the game.
+- Minecraft Java Edition 26.3, on a Microsoft account that owns the game.
 - A GeForce RTX 30-series or newer GPU with NVIDIA driver 616.92 or newer.
 - About 5 GB of free disk space while installing; about 3 GB stays in use.
 - An internet connection while the installer runs.
@@ -69,11 +69,11 @@ before playing.
 | `LICENSES\Apache-2.0.txt`, `NOTICE` | The upstream mod and JNI shim's Apache-2.0 terms and attribution notices |
 | `THIRD_PARTY_NOTICES.md`, `packaging\licenses\` | The third-party components the mod JAR carries, chiefly the RTX Remix runtime, and their license texts |
 
-The mod file name ends in the version, a build timestamp, and a short commit
-hash, which together identify the exact build. Keep the whole name for bug
-reports. A file name ending in `-win64` or `-arm64` carries one architecture;
-any other name carries both, and the matching runtime is unpacked on first
-launch.
+Distribution filenames identify the loader, Minecraft version, mod version,
+and platform, for example `pathmine-fabric-26.3-0.2.0-alpha.1-windows-x64.jar`.
+Keep the complete filename for bug reports. The package metadata also records
+the source revision. Windows packages ending in `windows-x64-arm64` carry both
+architectures; single-architecture packages carry only their named runtime.
 
 ## Detailed installation
 
@@ -230,7 +230,7 @@ if you are wiping it anyway.
 | Windows SmartScreen warns about the Prism Launcher download | Prism Launcher is open-source and is not signed by Microsoft. Choose More info, then Run anyway. You can also install it yourself from <https://prismlauncher.org>, start it once, then re-run `install.bat`, which detects it |
 | The Prism download fails | Check the firewall and retry. The installer asks GitHub for the newest Prism release, and a shared network address can hit GitHub's anonymous rate limit. If GitHub reports a rate limit, wait before retrying |
 | `Download failed after 3 attempts from` followed by an Adoptium URL and the error details | The Adoptium API at `api.adoptium.net` has to be reachable. Check the firewall and re-run |
-| `Failed to extract JDK 21 archive:` followed by the error details | Check free disk space and the permissions on your temporary folder, then re-run the installer to download and extract a fresh archive |
+| `Failed to extract JDK 25 archive:` followed by the error details | Check free disk space and the permissions on your temporary folder, then re-run the installer to download and extract a fresh archive |
 | The Fabric API download fails | `maven.fabricmc.net` has to be reachable. Check the firewall and re-run |
 | The installer refuses to choose a launcher | Both Prism and the Microsoft launcher are installed and the run was headless. Pass `-Launcher Prism` or `-Launcher Microsoft` |
 

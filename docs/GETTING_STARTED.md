@@ -10,10 +10,10 @@ If you only want to play, read
 
 - **Windows 10 or 11**, on x64 or ARM64. The Windows JNI bridge is compiled
   with MSVC.
-- **Java 21**, a JDK matching your machine's architecture. Eclipse Adoptium is
+- **Java 25**, a JDK matching your machine's architecture. Eclipse Adoptium is
   a good choice. Set `JAVA_HOME` to that JDK: the native build reads it to find
-  `jni.h`. Prism runs Minecraft 1.21.1 only on Java 21, not a newer version,
-  so the developer tools launch the game on `JAVA_HOME` when it is a JDK 21
+  `jni.h`. Prism runs Minecraft 26.3 only on Java 25, not a newer version,
+  so the developer tools launch the game on `JAVA_HOME` when it is a JDK 25
   and otherwise look for one in Gradle's toolchains and in the Eclipse
   Adoptium, Microsoft, and Java folders under Program Files.
 - **Visual Studio 2022 Build Tools** with the Desktop development with C++
@@ -265,7 +265,7 @@ validation of native integration.
 
 The JAR from `package` is the one players get: it embeds the runtime, gameplay
 conf payload, runtime textures, and baseline PBR textures. To try it in a
-normal installation of Minecraft 1.21.1 that already has Fabric Loader and
+normal installation of Minecraft 26.3 that already has Fabric Loader and
 Fabric API, drop it into the instance's `mods` folder; nothing else is needed.
 The release archive's installer also migrates old generated baseline packs and
 preserves user-pack ordering.
@@ -289,18 +289,28 @@ runtime uses Python-free OpenUSD. Plain `.py` templates are not interpreters:
 `usd/usd/resources/codegenTemplates/__init__.py` is deliberately permitted.
 The task also requires every `packaging/licenses/` file in the JAR.
 
-| `package` invocation | Output |
-|---|---|
-| `package` on Windows | Dual-architecture fat JAR. Needs both Windows architectures staged from the same kind of source |
-| `package -Parch=win64` | win64 only, skips the arm64 bridge compile |
-| `package -Parch=arm64` | arm64 only, useful for cross-building for device testing |
+Complete distribution JARs use
+`pathmine-fabric-<minecraft-version>-<mod-version>-<platform>.jar`.
+`<mod-version>` comes from `mod_version` in `gradle.properties`, or its
+`-Pmod_version=...` override. The platform is selected below.
+
+Development/source JAR names, the version in `fabric.mod.json`, and release
+ZIP names retain the full build version: the mod version, UTC build timestamp,
+short commit hash, a `-dirty` marker when tracked files are modified, and an
+architecture suffix for single-target builds.
+
+| `package` invocation | Platform in JAR filename | Output |
+|---|---|---|
+| `package` on Windows | `windows-x64-arm64` | Dual-architecture fat JAR. Needs both Windows architectures staged from the same kind of source |
+| `package -Parch=win64` | `windows-x64` | win64 only, skips the arm64 bridge compile |
+| `package -Parch=arm64` | `windows-arm64` | arm64 only, useful for cross-building for device testing |
+| `package -Parch=linux64` (default on Linux) | `linux-x64` | Linux x64 only, requires a matching Linux runtime staged |
 
 `releaseArchive` runs `package` and its `verifyPackageJar` check, then stages
 the verified JAR under `build/release/mods/` and the installer scripts,
 documentation, and license notices beside it. It writes that layout as a ZIP
-in `build/distributions/`. The same `-Parch` selection applies; omitting it on
-Windows includes both Windows architectures. Linux defaults to `linux64` for
-both packaging tasks. No separate baseline resource-pack directory is needed.
+in `build/distributions/`. The same architecture selection applies to both
+packaging tasks. No separate baseline resource-pack directory is needed.
 
 The [`package-windows` workflow](../.github/workflows/package-windows.yml) runs
 `package -Parch=win64` on a native Windows runner for pushes to
@@ -486,12 +496,12 @@ removes its stale registration.
 | Symptom | Cause |
 |---|---|
 | `vswhere.exe not found` or `vcvarsall.bat failed` | Visual Studio Build Tools missing, or without the Desktop C++ workload. ARM64 also needs toolset 14.44 |
-| `JAVA_HOME is not set`, or `jni.h not found` | `JAVA_HOME` unset or pointing at a JRE rather than a JDK 21 |
+| `JAVA_HOME is not set`, or `jni.h not found` | `JAVA_HOME` unset or pointing at a JRE rather than a JDK 25 |
 | Gradle cannot fetch the SDK | Check network access to the Packman remote, or stage a matching local runtime. See [Get A Runtime](#get-a-runtime) |
 | A launch reports that Prism Launcher is not installed | Install it from [prismlauncher.org](https://prismlauncher.org), or point `prism.executable` in `tools/config.local.json` at its `prismlauncher.exe` |
 | A launch opens Prism and stops with sign-in steps | No Microsoft account that owns Minecraft is signed in to the selected Prism profile, or `prism.account` names another. See [Sign In To Prism](#sign-in-to-prism) |
 | A launch reports that Prism is already running | Close the selected Prism window and launch again |
-| A launch reports that Minecraft 1.21.1 in Prism needs a 64-bit JDK 21 | `JAVA_HOME` names another Java version or architecture, and no JDK 21 for this machine is installed where the tools look. Install one and set `JAVA_HOME` to it |
+| A launch reports that Minecraft 26.3 in Prism needs a 64-bit JDK 25 | `JAVA_HOME` names another Java version or architecture, and no JDK 25 for this machine is installed where the tools look. Install one and set `JAVA_HOME` to it |
 | A JVM option set in `JAVA_TOOL_OPTIONS` has no effect | Prism does not pass it to the game. Use `launch.jvmArgs`; see [JVM Arguments](TUNING.md#jvm-arguments) |
 | `Failed to initialize RTX Remix` with error code 8, and the game renders vanilla | The staged runtime predates the API in `rtxremix-java/native/include/remix_c.h`. Stage one of the runtimes listed in [Get A Runtime](#get-a-runtime) |
 | `UnsatisfiedLinkError` naming `remixbridge` | The bridge did not compile, or it was compiled for the other architecture. Re-run the build and check that `-Parch` matches the staged runtime |

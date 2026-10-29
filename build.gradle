@@ -7,7 +7,7 @@ import javax.inject.Inject
 import org.gradle.process.ExecOperations
 
 plugins {
-    id 'fabric-loom' version '1.15.5'
+    id 'net.fabricmc.fabric-loom' version '1.19.3'
     id 'java'
 }
 
@@ -17,6 +17,7 @@ interface RuntimeFetchServices {
 }
 
 def baseVersion = providers.gradleProperty('mod_version').get()
+def minecraftVersion = '26.3'
 def buildTimestamp = java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC)
         .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
 def gitShortHash = providers.exec { commandLine 'git', 'rev-parse', '--short=7', 'HEAD' }
@@ -119,6 +120,8 @@ base {
     archivesName = 'pathmine'
 }
 def projectArchiveName = base.archivesName.get()
+def packagePlatform = [win64: 'windows-x64', arm64: 'windows-arm64', linux64: 'linux-x64']
+def packageClassifier = isSingleArchJar ? packagePlatform[buildArches[0]] : 'windows-x64-arm64'
 
 repositories {
     mavenCentral()
@@ -128,10 +131,10 @@ repositories {
     }
 }
 
-// Minecraft 1.21.x requires Java 21
+// Minecraft 26.3 requires Java 25.
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
     withSourcesJar()
 }
@@ -148,16 +151,8 @@ sourceSets {
 loom {
     accessWidenerPath = file("src/main/resources/rtx-remix-renderer.accesswidener")
 
-    // Loom 1.15+ disabled the mixin annotation processor by default. We use
-    // mixins extensively (see src/main/resources/rtx-remix-renderer.mixins.json),
-    // so explicitly opt back into the legacy AP via the `mixin` extension's
-    // useLegacyMixinAp flag. The previous defaultRefmapName setting is no
-    // longer needed. Without it, Loom derives the refmap name from the
-    // project; our mixins.json doesn't reference the refmap by literal name,
-    // so the auto-derived name works fine.
-    mixin {
-        useLegacyMixinAp = true
-    }
+    // Minecraft 26.3 ships readable names. Use Loom's unobfuscated pipeline;
+    // the legacy mixin annotation processor requires the old mapping setup.
 
     runs {
         client {
@@ -208,15 +203,14 @@ loom {
 // Fabric API (keep in sync with FABRIC_API_VERSION in packaging/installer.ps1,
 // which is what gets installed at runtime on the user's machine). One literal
 // serves both the compile dependency and stageFabricApi.
-def fabricApiCoordinate = "net.fabricmc.fabric-api:fabric-api:0.116.10+1.21.1"
+def fabricApiCoordinate = "net.fabricmc.fabric-api:fabric-api:0.165.0+26.3"
 
 dependencies {
     // Minecraft and Fabric
-    minecraft "com.mojang:minecraft:1.21.1"
-    mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
-    modImplementation "net.fabricmc:fabric-loader:0.16.5"
+    minecraft "com.mojang:minecraft:${minecraftVersion}"
+    implementation "net.fabricmc:fabric-loader:0.20.1"
 
-    modImplementation fabricApiCoordinate
+    implementation fabricApiCoordinate
 
     // Testing
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
@@ -224,8 +218,19 @@ dependencies {
 }
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags 'gpu' }
     // Pin the per-frame install cap so tests don't depend on the CPU count
+    systemProperty 'rtxremix.chunk.maxInstalledColumnsPerFrame', '8'
+}
+
+// Requires a real native graphics device; kept separate from headless CI unit checks.
+tasks.register('gpuTest', Test) {
+    description = 'Runs tests that create real SDL/OpenGL resources'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'gpu' }
+    shouldRunAfter tasks.named('test')
     systemProperty 'rtxremix.chunk.maxInstalledColumnsPerFrame', '8'
 }
 
@@ -249,7 +254,7 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
-    options.release = 21
+    options.release = 25
 }
 
 def currentRuntimeArch = linuxHost ? 'linux64' :
@@ -523,7 +528,7 @@ def configureNativeLinux64 = tasks.register('configureNativeLinux64', Exec) {
     description = 'Configures the native Linux JNI bridge with CMake'
     group = 'build'
     def compiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
     inputs.files fileTree('rtxremix-java/native') { include '**/CMakeLists.txt' }
     outputs.file layout.buildDirectory.file('native/linux64/CMakeCache.txt')
@@ -532,7 +537,9 @@ def configureNativeLinux64 = tasks.register('configureNativeLinux64', Exec) {
             throw new GradleException('compileNativeLinux64 requires a native Linux x86_64 toolchain')
         }
         environment 'JAVA_HOME', compiler.get().metadata.installationPath.asFile.absolutePath
-        def joml = configurations.compileClasspath.files.find { it.name == 'joml-1.10.5.jar' }
+        def joml = configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts.find {
+            it.moduleVersion.id.group == 'org.joml' && it.name == 'joml'
+        }?.file
         if (joml == null) throw new GradleException('The pinned Minecraft JOML dependency was not resolved')
         args "-DREMIX_JOML_JAR=${joml.absolutePath}"
     }
@@ -576,29 +583,30 @@ jar {
 }
 
 // `build` leaves Loom's remapped lightweight JAR in build/libs for fast dev
-// iteration. packageJar starts with that already-remapped JAR and adds only the
+// iteration. packageJar starts with that compiled JAR and adds only the
 // selected native payload, writing the distributable JAR to build/distributions.
 // Packaging therefore depends on an explicit task instead of guessing intent
 // from Gradle's command-line task names (`package` versus `:package`).
-def remapJarTask = tasks.named('remapJar')
+def modJarTask = tasks.named('jar')
 def packageJarTask = tasks.register('packageJar', Zip) {
-    description = 'Assembles the remapped distributable JAR with the selected platform SDKs bundled'
+    description = 'Assembles the distributable JAR with the selected platform SDKs bundled'
     group = 'build'
-    dependsOn remapJarTask
+    dependsOn modJarTask
     dependsOn buildArches.collect { fetchRuntimeSdkTasks[it] }
     if (buildArches.contains('win64')) dependsOn 'compileNativeWin64'
     if (buildArches.contains('arm64')) dependsOn 'compileNativeArm64'
     if (buildArches.contains('linux64')) dependsOn 'compileNativeLinux64'
 
-    archiveBaseName.set(projectArchiveName)
-    archiveVersion.set(resolvedBuildVersion)
+    archiveBaseName.set("${projectArchiveName}-fabric-${minecraftVersion}")
+    archiveVersion.set(baseVersion)
+    archiveClassifier.set(packageClassifier)
     archiveExtension.set('jar')
     destinationDirectory.set(layout.buildDirectory.dir('distributions'))
     duplicatesStrategy = DuplicatesStrategy.FAIL
     preserveFileTimestamps = false
     reproducibleFileOrder = true
 
-    from({ zipTree(remapJarTask.get().archiveFile.get().asFile) })
+    from({ zipTree(modJarTask.get().archiveFile.get().asFile) })
 
     doFirst {
         checkPackageSourceHomogeneity()
@@ -769,8 +777,9 @@ tasks.register('releaseArchive', Zip) {
     description = 'Builds an installable release tree and ZIP with the selected platform SDKs'
     group = 'build'
     from(stageReleaseArchiveTask)
-    archiveBaseName.set(projectArchiveName)
-    archiveVersion.set(resolvedBuildVersion)
+    archiveBaseName.set("${projectArchiveName}-fabric-${minecraftVersion}")
+    archiveVersion.set(baseVersion)
+    archiveClassifier.set(packageClassifier)
     destinationDirectory.set(layout.buildDirectory.dir('distributions'))
     duplicatesStrategy = DuplicatesStrategy.FAIL
     preserveFileTimestamps = false

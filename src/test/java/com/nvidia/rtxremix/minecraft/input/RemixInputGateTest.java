@@ -5,7 +5,7 @@
 package com.nvidia.rtxremix.minecraft.input;
 
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
+import org.lwjgl.sdl.SDLScancode;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -32,11 +32,11 @@ class RemixInputGateTest {
     void altXOpensWheneverCaptureIsClosed() {
         RemixInputGate gate = new RemixInputGate();
 
-        assertSame(TOGGLE_MENU, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, true));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_REPEAT, true));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_RELEASE, true));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, false));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_PRESS, true));
+        assertSame(TOGGLE_MENU, key(gate, SDLScancode.SDL_SCANCODE_X, 1, true));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_X, -1, true));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_X, 0, true));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_X, 1, false));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_W, 1, true));
     }
 
     @Test
@@ -44,11 +44,11 @@ class RemixInputGateTest {
         RemixInputGate gate = new RemixInputGate();
         open(gate);
 
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_PRESS, false));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_PRESS, true));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_REPEAT, false));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_RELEASE, false));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_PRESS, false));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_W, 1, false));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_W, 1, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_W, -1, false));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_W, 0, false));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_ESCAPE, 1, false));
         assertTrue(gate.isCaptureSessionOpen());
     }
 
@@ -57,54 +57,54 @@ class RemixInputGateTest {
         RemixInputGate gate = new RemixInputGate();
         open(gate);
 
-        assertSame(TOGGLE_MENU, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, true));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_REPEAT, true));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_RELEASE, true));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, false));
+        assertSame(TOGGLE_MENU, key(gate, SDLScancode.SDL_SCANCODE_X, 1, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_X, -1, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_X, 0, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_X, 1, false));
     }
 
     @Test
     void controlAltXDoesNotToggle() {
         RemixInputGate gate = new RemixInputGate();
 
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, true, true));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, false, true));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_REPEAT, true, true));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_RELEASE, true, true));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_X, 1, true, true));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_X, 1, false, true));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_X, -1, true, true));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_X, 0, true, true));
 
         open(gate);
 
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, true, true));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_PRESS, false, true));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_REPEAT, true, true));
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_X, GLFW.GLFW_RELEASE, true, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_X, 1, true, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_X, 1, false, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_X, -1, true, true));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_X, 0, true, true));
         assertTrue(gate.isCaptureSessionOpen());
     }
 
     @Test
     void closingReturnsHeldKeyEventsToMinecraftImmediately() {
         RemixInputGate gate = new RemixInputGate();
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_PRESS, false));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_W, 1, false));
         open(gate);
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_REPEAT, false));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_W, -1, false));
 
         close(gate);
 
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_REPEAT, false));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_W, GLFW.GLFW_RELEASE, false));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_W, -1, false));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_W, 0, false));
     }
 
     @Test
     void keyPressedInsideOverlayPassesAfterClose() {
         RemixInputGate gate = new RemixInputGate();
         open(gate);
-        assertSame(BLOCK, key(gate, GLFW.GLFW_KEY_E, GLFW.GLFW_PRESS, false));
+        assertSame(BLOCK, key(gate, SDLScancode.SDL_SCANCODE_E, 1, false));
 
         close(gate);
 
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_E, GLFW.GLFW_REPEAT, false));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_E, GLFW.GLFW_RELEASE, false));
-        assertSame(PASS, key(gate, GLFW.GLFW_KEY_E, GLFW.GLFW_PRESS, false));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_E, -1, false));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_E, 0, false));
+        assertSame(PASS, key(gate, SDLScancode.SDL_SCANCODE_E, 1, false));
     }
 
     @Test

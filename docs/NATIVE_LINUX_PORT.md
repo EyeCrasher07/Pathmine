@@ -7,7 +7,9 @@ A replacement path tracer is outside the scope of this port.
 The Minecraft-independent JNI bridge builds as `libremixbridge.so` with CMake.
 Linux loads `libremix.so` through `dlopen`, imports Vulkan images and timeline
 semaphores through duplicated Linux file descriptors, and presents the composited
-frame through GLFW. Windows keeps the existing DLL and Win32 handle paths.
+frame through Minecraft's OpenGL presentation path. The 26.3 integration uses
+SDL3 for windows and input; earlier 1.21.1 builds use GLFW. Windows keeps the
+existing DLL and Win32 handle paths.
 
 ```sh
 ./gradlew build testNativeLinux64 -Parch=linux64
@@ -56,7 +58,7 @@ thread to accommodate the driver's larger stack allocation.
 
 Linux publishes the original Remix interface as a separate premultiplied RGBA8
 image, alongside the world color and depth images under the same timeline
-semaphores. The mod composites it after Minecraft's HUD and screens. GLFW mouse,
+semaphores. The mod composites it after Minecraft's HUD and screens. Minecraft mouse,
 keyboard, Unicode and focus events reach the existing ImGui controls through
 two Linux extension exports, without changing the pinned API 0.16 table.
 The native loader requires both exports. GPU tests cover a visible menu, clearing
@@ -122,7 +124,16 @@ there with developer home and build directories hidden. The resulting JAR has
 also been launched in Minecraft on the Linux target. These binary/load checks
 do not establish graphics driver support across distributions or other GPUs.
 
-Current target: Minecraft 1.21.1 on Linux x86_64 with an RTX 2060. The original
-Windows release has been tested as a comparison reference. The changed Windows
-build and broader game versions still need validation. Native JNI and GPU interop
-tests remain separate evidence from visual parity and long-session stability.
+Current source target: Minecraft 26.3 with Fabric, Java 25, and native Windows
+or Linux x86_64 runtimes. The packaged 26.3 port has been exercised on both
+systems on an RTX 2060, including terrain, entities, menus, weather, and RTX
+toggling. The deferred terrain recapture fix for missing block-entity models
+has been confirmed on both systems. The latest held-glass material correction
+has Linux gameplay evidence; its Windows gameplay retest is still pending.
+The native renderer and Windows DLL payloads are unchanged by that correction.
+
+The 1.21.1 reference comparisons above remain evidence for that version, not a
+claim of exact 26.3 parity. Crowded multiplayer performance, long sessions,
+other GPUs/distributions, and the remaining planned game versions and loaders
+still need validation. Native JNI and GPU interop tests remain separate
+evidence from gameplay and visual parity.

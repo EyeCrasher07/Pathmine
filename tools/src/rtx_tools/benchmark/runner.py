@@ -2066,7 +2066,7 @@ def doctor_report(
     if java_home:
         add("ok", "java", f"JAVA_HOME={java_home}", javaArch=java_arch or "", processArch=process_arch or "")
     else:
-        add("error", "java", "Could not find a Java 21-style JDK with include/jni.h.")
+        add("error", "java", "Could not find a JDK with include/jni.h.")
 
     launcher_description = "Client launcher"
     try:

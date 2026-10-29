@@ -6,9 +6,9 @@ package com.nvidia.rtxremix.minecraft.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.blaze3d.font.GlyphBitmap;
 import com.nvidia.rtxremix.minecraft.texture.GlyphPageMirror;
-import net.minecraft.client.font.GlyphAtlasTexture;
-import net.minecraft.client.font.RenderableGlyph;
+import net.minecraft.client.gui.font.FontTexture;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -24,10 +24,10 @@ import org.spongepowered.asm.mixin.injection.At;
  * bitmap, TrueType and built-in glyphs and {@code GlStateManager._upload} for Unihex,
  * which is why the scope is opened here and the pixels are read where they are uploaded.
  */
-@Mixin(GlyphAtlasTexture.class)
+@Mixin(FontTexture.class)
 public abstract class GlyphAtlasTextureMixin implements GlyphPageMirror.Owner {
 
-    @Shadow @Final private boolean hasColor;
+    @Shadow @Final private boolean colored;
 
     private GlyphPageMirror rtxremix$mirror;
 
@@ -36,19 +36,19 @@ public abstract class GlyphAtlasTextureMixin implements GlyphPageMirror.Owner {
         // Created on first use: hasColor is assigned by the constructor, so a field
         // initialiser could not read it.
         if (rtxremix$mirror == null) {
-            rtxremix$mirror = new GlyphPageMirror(!hasColor);
+            rtxremix$mirror = new GlyphPageMirror(!colored);
         }
         return rtxremix$mirror;
     }
 
     @WrapOperation(
-        method = "getGlyphRenderer",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/font/RenderableGlyph;upload(II)V")
+        method = "add",
+        at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/font/GlyphBitmap;upload(IILcom/mojang/renderpearl/api/textures/GpuTexture;)V")
     )
-    private void rtxremix$mirrorGlyphUpload(RenderableGlyph glyph, int x, int y, Operation<Void> original) {
+    private void rtxremix$mirrorGlyphUpload(GlyphBitmap glyph, int x, int y, com.mojang.renderpearl.api.textures.GpuTexture texture, Operation<Void> original) {
         GlyphPageMirror.beginUpload(rtxremix$glyphPageMirror());
         try {
-            original.call(glyph, x, y);
+            original.call(glyph, x, y, texture);
         } finally {
             GlyphPageMirror.endUpload();
         }

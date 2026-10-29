@@ -5,10 +5,10 @@ native Linux.
 
 ## What You Need
 
-- Minecraft Java Edition 1.21.1, on a Microsoft account that owns the game.
-- A 64-bit Java 21 runtime, Fabric Loader, and Fabric API for that game version.
-  The [Fabric metadata](../src/main/resources/fabric.mod.json) records the
-  Loader and Fabric API minimum versions.
+- Minecraft Java Edition on a Microsoft account that owns the game. Use a JAR built for your exact Minecraft version.
+- For the 26.3 source preview: 64-bit Java 25, Fabric Loader 0.20.1 or newer, and Fabric API 0.165.0+26.3 or newer.
+- For earlier 1.21.1 releases: 64-bit Java 21, Fabric Loader 0.16.5 or newer, and Fabric API 0.116.10+1.21.1 or newer.
+  The [Fabric metadata](../src/main/resources/fabric.mod.json) records the current source target. These JARs are not interchangeable.
 - For Windows: Windows 10 or 11 on x86_64, and a GeForce RTX 30-series or newer
   GPU with NVIDIA driver 616.92 or newer.
 - For Linux: an x86_64 distribution meeting the `linuxDistribution` ABI
@@ -31,9 +31,7 @@ and there are bugs yet to be found. Two things to know before a long session:
 
 - **Other mods.** It has had limited testing alongside other mods, and mods
   that change rendering or chunk loading are likely to conflict with it.
-- **Scope.** It targets Minecraft 1.21.1 only. Blocks, mobs, dimensions, and
-  situations the showcase never reaches have had less care, and some will look
-  wrong or run slowly.
+- **Scope.** The current source preview targets Minecraft 26.3; earlier releases target 1.21.1. Other versions and mod loaders are not supported by these builds. Blocks, mobs, dimensions, and situations outside the tested scenes may look wrong or run slowly.
 
 When something breaks, [report it](#reporting-a-bug); that is how it gets
 fixed.
@@ -84,6 +82,12 @@ appear after the screen closes; let it settle before judging the picture.
 
 The baseline PBR textures ship inside the mod JAR, so no separate baseline
 pack needs enabling. User packs override the built-in baseline.
+
+Held stained glass uses an optical-distance correction for the smaller first-person
+model. Flat pane items also retain the color and alpha of their surface texture.
+These first-person materials are separate from placed glass; they do not retune
+world glass or exposure. This correction is included in the 26.3 source preview,
+not the earlier published 1.21.1 JARs.
 
 ## Check It Worked
 
@@ -204,7 +208,7 @@ following:
 
 | What to include | Where to find it |
 |---|---|
-| The mod file name | The `mods/` folder in the game directory. The name ends in a build stamp, which identifies the exact build. |
+| The mod file name | Copy the complete name from the `mods/` folder in the game directory. |
 | Which launcher you used | The launcher and instance you started. |
 | Your GPU and driver version | The NVIDIA app, or `nvidia-smi` in a terminal. |
 | Whether a laptop display is driven by the built-in graphics chip | On Windows, check Settings, Display, Graphics. |
@@ -217,6 +221,10 @@ following:
 | For a visual bug, a matching pair | Take the shot, type `/rtx off`, take a second shot from the same spot, then `/rtx on`. The pair shows what changed. |
 
 ## Updating
+
+When changing Minecraft versions, use a separate instance and back up the world
+before opening it. A world upgraded to 26.3 should not be opened again in 1.21.1.
+Use the release's matching Java, Fabric Loader, and Fabric API requirements.
 
 Stop the game, download the updated preview JAR for your operating system
 through [Install](../README.md#install), and replace the old Pathmine JAR in

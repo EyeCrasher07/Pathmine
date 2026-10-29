@@ -4,89 +4,61 @@
  */
 package com.nvidia.rtxremix.minecraft.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.nvidia.rtxremix.minecraft.entity.EntityRenderContext;
-import com.nvidia.rtxremix.minecraft.entity.HeldItemEffectsRenderer;
+import com.nvidia.rtxremix.minecraft.entity.ItemCaptureState;
 import com.nvidia.rtxremix.minecraft.terrain.capture.BlockQuadEmitter;
 import com.nvidia.rtxremix.minecraft.texture.BlockTextureManager;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.item.ItemRenderer;
-import net.minecraft.client.render.model.BakedModel;
-import net.minecraft.client.render.model.json.ModelTransformationMode;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ItemStack;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Records the terrain layer of the block item being rendered, and adds the lit
- * element of a hand-held item.
- *
- * <p>Minecraft routes ordinary opaque items through its translucent item layer,
- * and clear glass through its cutout one, so the render layer alone cannot tell
- * a pane of stained glass from an apple, or clear glass from a torch. The
- * {@code ItemStack} can, and this is the last point at which it is in scope
- * before the geometry reaches capture.
- */
-@Mixin(ItemRenderer.class)
-public class ItemRendererMixin {
+/** Carries item identity and block material classification into the extracted model's submissions. */
+@Mixin(ItemStackRenderState.class)
+public abstract class ItemRendererMixin implements ItemCaptureState {
+    @Shadow public ItemDisplayContext displayContext;
+    @Unique private ItemStack rtxremix$item;
+    @Override public ItemStack rtxremix$item() { return rtxremix$item; }
+    @Override public void rtxremix$setItem(ItemStack item) { rtxremix$item = item; }
 
-    @Inject(
-        method = "renderItem(Lnet/minecraft/item/ItemStack;Lnet/minecraft/client/render/model/json/ModelTransformationMode;ZLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IILnet/minecraft/client/render/model/BakedModel;)V",
-        at = @At("HEAD")
-    )
-    private void rtxremix$beginItem(ItemStack stack, ModelTransformationMode mode, boolean leftHanded,
-                                    MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                                    int light, int overlay, BakedModel model, CallbackInfo ci) {
-        EntityRenderContext context = EntityRenderContext.get();
-        if (context.isRemixPass()) {
-            context.setBlockItemLayer(rtxremix$blockLayer(stack));
+    @Inject(method = "clear", at = @At("HEAD"))
+    private void rtxremix$clearItem(CallbackInfo ci) { rtxremix$item = null; }
+
+    @WrapMethod(method = "submit")
+    private void rtxremix$captureItem(PoseStack matrices, SubmitNodeCollector output,
+            int light, int overlay, int outline, Operation<Void> original) {
+        var context = EntityRenderContext.get();
+        if (!context.isRemixPass()) {
+            original.call(matrices, output, light, overlay, outline);
+            return;
         }
-    }
-
-    /**
-     * Adds the item's lit element right after its baked model, while the matrix
-     * stack still holds the item's block-space pose. Running here rather than in
-     * a hand-specific renderer covers every hand-held render with one hook.
-     */
-    @Inject(
-        method = "renderItem(Lnet/minecraft/item/ItemStack;Lnet/minecraft/client/render/model/json/ModelTransformationMode;ZLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IILnet/minecraft/client/render/model/BakedModel;)V",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/render/item/ItemRenderer;renderBakedItemModel(Lnet/minecraft/client/render/model/BakedModel;Lnet/minecraft/item/ItemStack;IILnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;)V",
-            shift = At.Shift.AFTER
-        )
-    )
-    private void rtxremix$renderHeldFlame(ItemStack stack, ModelTransformationMode mode, boolean leftHanded,
-                                          MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                                          int light, int overlay, BakedModel model, CallbackInfo ci) {
-        HeldItemEffectsRenderer.render(stack, mode, matrices, vertexConsumers, model);
-    }
-
-    @Inject(
-        method = "renderItem(Lnet/minecraft/item/ItemStack;Lnet/minecraft/client/render/model/json/ModelTransformationMode;ZLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IILnet/minecraft/client/render/model/BakedModel;)V",
-        at = @At("RETURN")
-    )
-    private void rtxremix$endItem(ItemStack stack, ModelTransformationMode mode, boolean leftHanded,
-                                  MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                                  int light, int overlay, BakedModel model, CallbackInfo ci) {
-        EntityRenderContext context = EntityRenderContext.get();
-        if (context.isRemixPass()) {
-            context.setBlockItemLayer(EntityRenderContext.NO_BLOCK_ITEM);
+        var previousState = context.getBlockItemState();
+        int previousLayer = context.getBlockItemLayer();
+        var previousStack = context.getItemStack();
+        var previousMode = context.getItemDisplayContext();
+        var block = rtxremix$item != null && rtxremix$item.getItem() instanceof BlockItem item
+                ? item.getBlock().defaultBlockState() : null;
+        context.setBlockItemState(block);
+        context.setBlockItemLayer(block == null ? EntityRenderContext.NO_BLOCK_ITEM
+                : BlockTextureManager.layerType(BlockQuadEmitter.classifyBlockLayer(block, ChunkSectionLayer.SOLID)));
+        context.setItem(rtxremix$item, displayContext);
+        try {
+            original.call(matrices, output, light, overlay, outline);
+        } finally {
+            context.setBlockItemState(previousState);
+            context.setBlockItemLayer(previousLayer);
+            context.setItem(previousStack, previousMode);
         }
-    }
-
-    /**
-     * Asks the question terrain asks of a placed block, through the same
-     * classifier, so a held block is classified exactly as its placed
-     * counterpart is.
-     */
-    private static int rtxremix$blockLayer(ItemStack stack) {
-        return stack.getItem() instanceof BlockItem blockItem
-                ? BlockTextureManager.layerType(
-                        BlockQuadEmitter.classifyBlockLayer(blockItem.getBlock().getDefaultState()))
-                : EntityRenderContext.NO_BLOCK_ITEM;
     }
 }

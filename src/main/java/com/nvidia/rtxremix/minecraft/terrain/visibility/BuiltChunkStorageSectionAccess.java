@@ -4,10 +4,15 @@
  */
 package com.nvidia.rtxremix.minecraft.terrain.visibility;
 
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher.RenderSection;
+
 /**
  * Section-addressed access to the built-chunk slots owned by BuiltChunkStorage.
  */
 public interface BuiltChunkStorageSectionAccess {
+
+    /** Stable slots indexed by Minecraft's section index; callers must not replace entries. */
+    RenderSection[] rtxremix$sections();
 
     /**
      * Flags a section for rebuild only if its slot still holds it. Vanilla's

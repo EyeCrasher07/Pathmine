@@ -79,7 +79,7 @@ def test_install_stages_complete_development_payload(installation, capsys, arch)
         "mods/pathmine-old.jar": b"old Pathmine mod",
         "mods/pathmine.jar": b"old stable Pathmine mod",
         "mods/rtx-remix-renderer.jar": b"old stable mod",
-        "mods/fabric-api-0.116.10+1.21.1.jar": b"fabric api",
+        "mods/fabric-api-0.165.0+26.3.jar": b"fabric api",
         "mods/another-mod.jar": b"another mod",
         "mods/pathminimap.jar": b"unrelated Pathmine prefix",
         "mods/rtx-remix-rendererextras.jar": b"unrelated renderer prefix",
@@ -98,7 +98,7 @@ def test_install_stages_complete_development_payload(installation, capsys, arch)
 
     expected = {
         "mods/pathmine.jar": b"newest mod",
-        "mods/fabric-api-0.116.10+1.21.1.jar": b"fabric api",
+        "mods/fabric-api-0.165.0+26.3.jar": b"fabric api",
         "mods/another-mod.jar": b"another mod",
         "mods/pathminimap.jar": b"unrelated Pathmine prefix",
         "mods/rtx-remix-rendererextras.jar": b"unrelated renderer prefix",
@@ -173,7 +173,7 @@ def test_install_warns_about_missing_fabric_api_without_installing_it(installati
 
     output = capsys.readouterr().out
     assert f"WARNING: no fabric-api jar in {game / 'mods'}." in output
-    assert "fabric-api >=0.116.10+1.21.1 (https://modrinth.com/mod/fabric-api)" in output
+    assert "fabric-api >=0.165.0+26.3 (https://modrinth.com/mod/fabric-api)" in output
     assert list((game / "mods").glob("fabric-api-*.jar")) == []
 
 
