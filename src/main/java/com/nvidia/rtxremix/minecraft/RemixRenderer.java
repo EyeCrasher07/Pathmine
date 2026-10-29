@@ -1215,7 +1215,7 @@ public class RemixRenderer {
             int width = client.getWindow().getFramebufferWidth();
             int height = client.getWindow().getFramebufferHeight();
             // The first world frame can precede vanilla's FOV initialization.
-            if (!isCameraProjectionReady(worldFov, width, height)) {
+            if (!prepareCameraProjection(worldFov, width, height, weatherRenderer)) {
                 return;
             }
             float aspect = (float) width / (float) height;
@@ -1262,9 +1262,16 @@ public class RemixRenderer {
         }
     }
 
-    static boolean isCameraProjectionReady(float fieldOfView, int width, int height) {
-        return Float.isFinite(fieldOfView) && fieldOfView > 0.0f && fieldOfView < 180.0f
-                && width > 0 && height > 0;
+    static boolean prepareCameraProjection(
+            float fieldOfView, int width, int height, RemixWeatherRenderer weatherRenderer) {
+        if (Float.isFinite(fieldOfView) && fieldOfView > 0.0f && fieldOfView < 180.0f
+                && width > 0 && height > 0) {
+            return true;
+        }
+        if (weatherRenderer != null) {
+            weatherRenderer.beginCaptureFrame(null);
+        }
+        return false;
     }
 
     ViewDistanceFade getViewDistanceFade() {
