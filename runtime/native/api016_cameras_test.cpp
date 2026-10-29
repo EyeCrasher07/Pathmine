@@ -76,23 +76,27 @@ namespace {
     return result;
   }
 
+  struct CameraPose {
+    api::remixapi_CameraInfoParameterizedEXT parameters;
+    dxvk::Matrix4 view;
+  };
+
   std::vector<uint8_t> render(RuntimeHost& host, ApiCameras& cameras,
       dxvk::native::test::Reader& reader, remixapi_MeshHandle mesh, VkExtent3D extent,
-      float x, bool matrixCamera = false, api::remixapi_MaterialHandle medium = nullptr) {
+      const CameraPose& pose, bool matrixCamera = false, api::remixapi_MaterialHandle medium = nullptr) {
     std::vector<uint8_t> pixels;
     for (uint32_t frame = 0; frame < 4; ++frame) {
       require(host.beginFrame(extent), "API camera frame was skipped");
-      auto params = parameters(x, float(extent.width) / extent.height);
+      auto params = pose.parameters;
       auto info = cameraInfo(&params);
       info.view[0][0] = std::numeric_limits<float>::quiet_NaN();
       if (matrixCamera) {
         info.pNext = nullptr;
-        const dxvk::Matrix4 view(dxvk::Vector3(-x, 0, 0));
         const float z = params.farPlane / (params.farPlane - params.nearPlane);
         const dxvk::Matrix4 projection(dxvk::Vector4(1.7320508f / params.aspect, 0, 0, 0),
           dxvk::Vector4(0, 1.7320508f, 0, 0), dxvk::Vector4(0, 0, z, 1),
           dxvk::Vector4(0, 0, -params.nearPlane * z, 0));
-        std::memcpy(info.view, &view, sizeof(info.view));
+        std::memcpy(info.view, &pose.view, sizeof(info.view));
         std::memcpy(info.projection, &projection, sizeof(info.projection));
       }
       cameras.setup(info);
@@ -102,10 +106,19 @@ namespace {
       cameras.setup(info);
       const auto& manager = host.context()->getSceneManager().getCameraManager();
       const auto& mainCamera = manager.getMainCamera();
-      require(std::abs(mainCamera.getPosition(false).x - x) < .0001f
+      const auto position = mainCamera.getPosition(false);
+      require(std::abs(position.x - params.position.x) < .0001f
+          && std::abs(position.y - params.position.y) < .0001f
+          && std::abs(position.z - params.position.z) < .0001f
           && std::abs(mainCamera.getNearPlane() - params.nearPlane) < .00001f,
         "API camera position or near plane changed during conversion");
-      require(std::abs(manager.getCamera(dxvk::CameraType::ViewModel).getPosition(false).x - x) < .0001f,
+      for (uint32_t column = 0; column < 4; ++column) {
+        for (uint32_t row = 0; row < 4; ++row) {
+          require(std::abs(mainCamera.getWorldToViewf(false)[column][row] - pose.view[column][row]) < .00001f,
+            "API camera basis or matrix layout changed its expected world-to-view transform");
+        }
+      }
+      require(std::abs(manager.getCamera(dxvk::CameraType::ViewModel).getPosition(false).x - params.position.x) < .0001f,
         "view-model camera did not receive the world camera pose");
       require(!dxvk::RtxOptions::enableNearPlaneOverride(), "API camera left the near-plane override enabled");
       params.position = { 100, 100, 100 };
@@ -123,18 +136,82 @@ namespace {
     return pixels;
   }
 
-  double centroid(const std::vector<float>& pixels, VkExtent3D extent) {
+  double centroid(const std::vector<float>& pixels, VkExtent3D extent, bool horizontal = true) {
     require(pixels.size() == size_t(extent.width) * extent.height, "API camera depth image has the wrong extent");
     size_t count = 0;
-    uint64_t sumX = 0;
+    uint64_t sumCoordinates = 0;
     for (size_t offset = 0; offset < pixels.size(); ++offset) {
       if (std::isfinite(pixels[offset]) && pixels[offset] != pixels[0]) {
         ++count;
-        sumX += offset % extent.width;
+        sumCoordinates += horizontal ? offset % extent.width : offset / extent.width;
       }
     }
     require(count > 100, "API camera did not produce a visible original path-traced triangle");
-    return (double(sumX) / count + .5) / extent.width;
+    return (double(sumCoordinates) / count + .5) / (horizontal ? extent.width : extent.height);
+  }
+
+  void checkCameraTypes(RuntimeHost& host, ApiCameras& cameras, dxvk::native::test::Reader& reader) {
+    require(host.beginFrame({ 96, 64, 1 }), "cannot begin camera routing frame");
+    const std::array<api::remixapi_CameraType, 3> types {
+      api::REMIXAPI_CAMERA_TYPE_WORLD, api::REMIXAPI_CAMERA_TYPE_VIEW_MODEL, api::REMIXAPI_CAMERA_TYPE_SKY };
+    const std::array<dxvk::CameraType::Enum, 3> camerasByType {
+      dxvk::CameraType::Main, dxvk::CameraType::ViewModel, dxvk::CameraType::Sky };
+    const std::array<api::remixapi_Float3D, 3> positions {{ { .25f, .5f, .75f }, { -.25f, -.5f, -.75f }, { 7, 8, 9 } }};
+    auto params = parameters(0, 1.5f);
+    auto info = cameraInfo(&params);
+    for (size_t index = 0; index < types.size(); ++index) {
+      info.type = types[index];
+      params.position = positions[index];
+      cameras.setup(info);
+    }
+    params.position = { 100, 100, 100 };
+    const auto& manager = host.context()->getSceneManager().getCameraManager();
+    for (size_t index = 0; index < types.size(); ++index) {
+      const auto position = manager.getCamera(camerasByType[index]).getPosition(false);
+      require(std::abs(position.x - positions[index].x) < .0001f
+          && std::abs(position.y - positions[index].y) < .0001f
+          && std::abs(position.z - positions[index].z) < .0001f,
+        "world, view-model or sky camera overwrote another camera's owned pose");
+    }
+    host.submit();
+    reader.readAndPresent(host);
+  }
+
+  void checkRotatedPoses(RuntimeHost& host, ApiCameras& cameras,
+      dxvk::native::test::Reader& reader, remixapi_MeshHandle mesh) {
+    constexpr float diagonal = .7071067812f;
+    constexpr float sinPitch = .5f;
+    constexpr float cosPitch = .8660254038f;
+    std::array<CameraPose, 3> poses {{
+      { parameters(0, 1.5f), dxvk::Matrix4(dxvk::Vector4(diagonal, 0, diagonal, 0), dxvk::Vector4(0, 1, 0, 0),
+          dxvk::Vector4(-diagonal, 0, diagonal, 0), dxvk::Vector4(3 * diagonal, 0, 3 - 3 * diagonal, 1)) },
+      { parameters(0, 1.5f), dxvk::Matrix4(dxvk::Vector4(1, 0, 0, 0), dxvk::Vector4(0, cosPitch, -sinPitch, 0),
+          dxvk::Vector4(0, sinPitch, cosPitch, 0), dxvk::Vector4(0, -1.5f, 3 - 3 * cosPitch, 1)) },
+      { parameters(0, 1.5f), dxvk::Matrix4(dxvk::Vector4(diagonal, -diagonal, 0, 0), dxvk::Vector4(diagonal, diagonal, 0, 0),
+          dxvk::Vector4(0, 0, 1, 0), dxvk::Vector4(0, 0, 0, 1)) }
+    }};
+    // Rotated views keep the fixture center three units along the forward axis.
+    poses[0].parameters.position = { -3 * diagonal, 0, 3 - 3 * diagonal };
+    poses[0].parameters.right = { 4 * diagonal, 0, -4 * diagonal };
+    poses[0].parameters.forward = { 2 * diagonal, 0, 2 * diagonal };
+    poses[1].parameters.position = { 0, 1.5f, 3 - 3 * cosPitch };
+    poses[1].parameters.up = { 0, 3 * cosPitch, 3 * sinPitch };
+    poses[1].parameters.forward = { 0, -2 * sinPitch, 2 * cosPitch };
+    poses[2].parameters.right = { 4 * diagonal, 4 * diagonal, 0 };
+    poses[2].parameters.up = { -3 * diagonal, 3 * diagonal, 0 };
+    for (size_t index = 0; index < poses.size(); ++index) {
+      const VkExtent3D extent { 96, 64, 1 };
+      render(host, cameras, reader, mesh, extent, poses[index]);
+      const auto depthExtent = host.interopInfo().depthExtent;
+      const auto parameterizedDepth = reader.depthPixels();
+      render(host, cameras, reader, mesh, extent, poses[index], true);
+      for (bool horizontal : { false, true }) {
+        require(std::abs(centroid(parameterizedDepth, depthExtent, horizontal)
+            - centroid(reader.depthPixels(), depthExtent, horizontal)) < .035,
+          "yaw, pitch or roll changed between parameterized and explicit camera rendering");
+      }
+      std::cout << "API rotated camera pose=" << index << ", parameterized/matrix output agrees\n";
+    }
   }
 
   void saveImage(const char* pPath, const std::vector<uint8_t>& pixels, VkExtent3D extent = { 96, 64, 1 }) {
@@ -199,6 +276,7 @@ int main() {
     ApiMaterials materials(host, textures);
     ApiCameras cameras(host, materials);
     checkBadInputs(cameras);
+    checkCameraTypes(host, cameras, reader);
     api::remixapi_MaterialInfoOpaqueEXT opaque { };
     opaque.sType = api::REMIXAPI_STRUCT_TYPE_MATERIAL_INFO_OPAQUE_EXT;
     opaque.albedoConstant = { 1, 1, 1 };
@@ -217,7 +295,9 @@ int main() {
     const std::array<VkExtent3D, 4> extents {{ { 96, 64, 1 }, { 128, 80, 1 }, { 80, 96, 1 }, { 96, 64, 1 } }};
     const std::array<float, 4> positions {{ 0, .65f, -.45f, 0 }};
     for (size_t index = 0; index < extents.size(); ++index) {
-      const auto pixels = render(host, cameras, reader, mesh, extents[index], positions[index], index == 3);
+      const CameraPose pose { parameters(positions[index], float(extents[index].width) / extents[index].height),
+        dxvk::Matrix4(dxvk::Vector3(-positions[index], 0, 0)) };
+      const auto pixels = render(host, cameras, reader, mesh, extents[index], pose, index == 3);
       const double measured = centroid(reader.depthPixels(), host.interopInfo().depthExtent);
       const double expected = .5 - positions[index] * 1.7320508 / (3 * double(extents[index].width) / extents[index].height) * .5;
       std::cout << "API camera x=" << positions[index] << ", centroid=" << measured << ", expected=" << expected << '\n';
@@ -225,11 +305,13 @@ int main() {
       require(std::abs(measured - expected) < .035,
         "parameterized/matrix API camera changed its handedness, projection or input ownership");
     }
+    checkRotatedPoses(host, cameras, reader, mesh);
 
     info.emissiveColorConstant = { 1, 1, 1 };
     materials.update(material, info);
     const VkExtent3D extent { 96, 64, 1 };
-    const auto dry = render(host, cameras, reader, mesh, extent, 0);
+    const CameraPose origin { parameters(0, 1.5f), dxvk::Matrix4() };
+    const auto dry = render(host, cameras, reader, mesh, extent, origin);
     api::remixapi_MaterialInfoTranslucentEXT water { };
     water.sType = api::REMIXAPI_STRUCT_TYPE_MATERIAL_INFO_TRANSLUCENT_EXT;
     water.refractiveIndex = 1.333f;
@@ -238,7 +320,7 @@ int main() {
     auto waterInfo = materialInfo(&water);
     waterInfo.emissiveIntensity = 0;
     const auto waterMaterial = materials.create(waterInfo);
-    const auto wet = render(host, cameras, reader, mesh, extent, 0, false, waterMaterial);
+    const auto wet = render(host, cameras, reader, mesh, extent, origin, false, waterMaterial);
     double red = 0;
     double blue = 0;
     size_t samples = 0;
@@ -258,7 +340,7 @@ int main() {
     require(blue > red + 25 && blue > 50, "API camera medium did not attenuate the original path-traced light");
     materials.destroy(waterMaterial);
     expectInvalid([&] { cameras.setMedium(mediumInfo(waterMaterial)); });
-    const auto restored = render(host, cameras, reader, mesh, extent, 0);
+    const auto restored = render(host, cameras, reader, mesh, extent, origin);
     size_t whitePixels = 0;
     for (size_t offset = 0; offset < restored.size(); offset += 4) {
       whitePixels += restored[offset] > 180 && restored[offset + 1] > 180 && restored[offset + 2] > 180;
