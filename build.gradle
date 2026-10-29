@@ -17,6 +17,7 @@ interface RuntimeFetchServices {
 }
 
 def baseVersion = providers.gradleProperty('mod_version').get()
+def minecraftVersion = '1.21.1'
 def buildTimestamp = java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC)
         .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
 def gitShortHash = providers.exec { commandLine 'git', 'rev-parse', '--short=7', 'HEAD' }
@@ -119,6 +120,8 @@ base {
     archivesName = 'pathmine'
 }
 def projectArchiveName = base.archivesName.get()
+def packagePlatform = [win64: 'windows-x64', arm64: 'windows-arm64', linux64: 'linux-x64']
+def packageClassifier = isSingleArchJar ? packagePlatform[buildArches[0]] : 'windows-x64-arm64'
 
 repositories {
     mavenCentral()
@@ -212,7 +215,7 @@ def fabricApiCoordinate = "net.fabricmc.fabric-api:fabric-api:0.116.10+1.21.1"
 
 dependencies {
     // Minecraft and Fabric
-    minecraft "com.mojang:minecraft:1.21.1"
+    minecraft "com.mojang:minecraft:${minecraftVersion}"
     mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
     modImplementation "net.fabricmc:fabric-loader:0.16.5"
 
@@ -590,8 +593,9 @@ def packageJarTask = tasks.register('packageJar', Zip) {
     if (buildArches.contains('arm64')) dependsOn 'compileNativeArm64'
     if (buildArches.contains('linux64')) dependsOn 'compileNativeLinux64'
 
-    archiveBaseName.set(projectArchiveName)
-    archiveVersion.set(resolvedBuildVersion)
+    archiveBaseName.set("${projectArchiveName}-fabric-${minecraftVersion}")
+    archiveVersion.set(baseVersion)
+    archiveClassifier.set(packageClassifier)
     archiveExtension.set('jar')
     destinationDirectory.set(layout.buildDirectory.dir('distributions'))
     duplicatesStrategy = DuplicatesStrategy.FAIL
