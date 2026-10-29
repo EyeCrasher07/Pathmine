@@ -101,7 +101,42 @@ namespace {
     }
   };
 
+  void versionCompatibility(Session& session) {
+    struct GuardedInterface {
+      api::remixapi_Interface table { };
+      std::array<uint8_t, 32> guard { };
+    };
+    static_assert(sizeof(GuardedInterface) == sizeof(api::remixapi_Interface) + 32);
+    api::remixapi_InitializeLibraryInfo info { };
+    info.sType = api::REMIXAPI_STRUCT_TYPE_INITIALIZE_LIBRARY_INFO;
+    for (uint16_t patch : std::array<uint16_t, 3> { 0, 1, 0xffff }) {
+      info.version = REMIXAPI_VERSION_MAKE(0, 16, patch);
+      GuardedInterface result;
+      result.guard.fill(0xa5);
+      success(session.initialize(&info, &result.table));
+      std::array<uintptr_t, 36> slots { };
+      std::memcpy(slots.data(), &result.table, sizeof(result.table));
+      require(std::all_of(slots.begin(), slots.end(), [](uintptr_t value) { return value != 0; }),
+        "compatible API patch version produced an incomplete interface");
+      require(std::all_of(result.guard.begin(), result.guard.end(), [](uint8_t value) { return value == 0xa5; }),
+        "compatible API initialization wrote beyond the interface");
+      success(result.table.Shutdown());
+    }
+    for (uint64_t version : std::array<uint64_t, 3> {
+        REMIXAPI_VERSION_MAKE(0, 15, 0), REMIXAPI_VERSION_MAKE(0, 17, 0), REMIXAPI_VERSION_MAKE(1, 16, 0) }) {
+      info.version = version;
+      GuardedInterface result;
+      result.guard.fill(0xa5);
+      const auto before = result;
+      require(session.initialize(&info, &result.table) == api::REMIXAPI_ERROR_CODE_INCOMPATIBLE_VERSION,
+        "incompatible API major or minor version was accepted");
+      require(std::memcmp(&result, &before, sizeof(result)) == 0,
+        "incompatible API version changed the caller's interface or guard");
+    }
+  }
+
   void handshake(Session& session) {
+    versionCompatibility(session);
     api::remixapi_InitializeLibraryInfo info { };
     info.sType = api::REMIXAPI_STRUCT_TYPE_INITIALIZE_LIBRARY_INFO;
     info.version = REMIXAPI_VERSION_MAKE(0, 6, 6);
