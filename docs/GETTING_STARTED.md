@@ -289,18 +289,28 @@ runtime uses Python-free OpenUSD. Plain `.py` templates are not interpreters:
 `usd/usd/resources/codegenTemplates/__init__.py` is deliberately permitted.
 The task also requires every `packaging/licenses/` file in the JAR.
 
-| `package` invocation | Output |
-|---|---|
-| `package` on Windows | Dual-architecture fat JAR. Needs both Windows architectures staged from the same kind of source |
-| `package -Parch=win64` | win64 only, skips the arm64 bridge compile |
-| `package -Parch=arm64` | arm64 only, useful for cross-building for device testing |
+Complete distribution JARs use
+`pathmine-fabric-<minecraft-version>-<mod-version>-<platform>.jar`.
+`<mod-version>` comes from `mod_version` in `gradle.properties`, or its
+`-Pmod_version=...` override. The platform is selected below.
+
+Development/source JAR names, the version in `fabric.mod.json`, and release
+ZIP names retain the full build version: the mod version, UTC build timestamp,
+short commit hash, a `-dirty` marker when tracked files are modified, and an
+architecture suffix for single-target builds.
+
+| `package` invocation | Platform in JAR filename | Output |
+|---|---|---|
+| `package` on Windows | `windows-x64-arm64` | Dual-architecture fat JAR. Needs both Windows architectures staged from the same kind of source |
+| `package -Parch=win64` | `windows-x64` | win64 only, skips the arm64 bridge compile |
+| `package -Parch=arm64` | `windows-arm64` | arm64 only, useful for cross-building for device testing |
+| `package -Parch=linux64` (default on Linux) | `linux-x64` | Linux x64 only, requires a matching Linux runtime staged |
 
 `releaseArchive` runs `package` and its `verifyPackageJar` check, then stages
 the verified JAR under `build/release/mods/` and the installer scripts,
 documentation, and license notices beside it. It writes that layout as a ZIP
-in `build/distributions/`. The same `-Parch` selection applies; omitting it on
-Windows includes both Windows architectures. Linux defaults to `linux64` for
-both packaging tasks. No separate baseline resource-pack directory is needed.
+in `build/distributions/`. The same architecture selection applies to both
+packaging tasks. No separate baseline resource-pack directory is needed.
 
 The [`package-windows` workflow](../.github/workflows/package-windows.yml) runs
 `package -Parch=win64` on a native Windows runner for pushes to

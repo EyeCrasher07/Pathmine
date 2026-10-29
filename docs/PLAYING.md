@@ -204,7 +204,7 @@ following:
 
 | What to include | Where to find it |
 |---|---|
-| The mod file name | The `mods/` folder in the game directory. The name ends in a build stamp, which identifies the exact build. |
+| The mod file name | Copy the complete name from the `mods/` folder in the game directory. |
 | Which launcher you used | The launcher and instance you started. |
 | Your GPU and driver version | The NVIDIA app, or `nvidia-smi` in a terminal. |
 | Whether a laptop display is driven by the built-in graphics chip | On Windows, check Settings, Display, Graphics. |

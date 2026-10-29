@@ -28,8 +28,10 @@ def test_build_tool_versions_are_reproducible(gradle_project: GradleProject):
     assert len(checksum) == 64 and int(checksum, 16) >= 0
 
 
-@pytest.mark.parametrize("arch", ["win64", "arm64", "linux64"])
-def test_release_contains_only_the_verified_payload(gradle_project: GradleProject, arch: str):
+@pytest.mark.parametrize(
+    "arch, platform", [("win64", "windows-x64"), ("arm64", "windows-arm64"), ("linux64", "linux-x64")]
+)
+def test_release_contains_only_the_verified_payload(gradle_project: GradleProject, arch: str, platform: str):
     project = gradle_project
     staging = project.root / "build" / "release"
     stale = staging / "mods" / "stale.jar"
@@ -39,7 +41,8 @@ def test_release_contains_only_the_verified_payload(gradle_project: GradleProjec
     model = project.read_model()
     jar = Path(model["packageJar"])
     assert jar.parent == project.root / "build" / "distributions"
-    assert model["version"] in jar.name
+    minecraft = next(dependency for dependency in model["dependencies"] if dependency["name"] == "minecraft")
+    assert jar.name == f"pathmine-fabric-{minecraft['version']}-{model['baseVersion']}-{platform}.jar"
     assert "verifyPackageJar" in model["packageDependencies"]
     assert "package" in model["stagingDependencies"]
     with zipfile.ZipFile(jar) as archive:

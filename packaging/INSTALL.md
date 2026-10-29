@@ -69,11 +69,9 @@ before playing.
 | `LICENSES\Apache-2.0.txt`, `NOTICE` | The upstream mod and JNI shim's Apache-2.0 terms and attribution notices |
 | `THIRD_PARTY_NOTICES.md`, `packaging\licenses\` | The third-party components the mod JAR carries, chiefly the RTX Remix runtime, and their license texts |
 
-The mod file name ends in the version, a build timestamp, and a short commit
-hash, which together identify the exact build. Keep the whole name for bug
-reports. A file name ending in `-win64` or `-arm64` carries one architecture;
-any other name carries both, and the matching runtime is unpacked on first
-launch.
+See the [packaging guide](https://github.com/EyeCrasher07/Pathmine/blob/main/docs/GETTING_STARTED.md#other-commands)
+for JAR filenames and target architectures. Keep the whole name for bug reports.
+The matching runtime is unpacked on first launch.
 
 ## Detailed installation
 
@@ -259,7 +257,7 @@ sure which it is, report it on this project and it will be moved.
 Rendering problems are hard to act on without specifics, so include all of
 the following:
 
-1. The mod file name, from the `mods\` folder. It identifies the exact build.
+1. The complete mod file name, from the `mods\` folder.
 2. Which launcher you used, Prism or Microsoft.
 3. Your GPU and driver version, from the NVIDIA app or `nvidia-smi`.
 4. Whether a laptop display is driven by the built-in graphics chip, from
