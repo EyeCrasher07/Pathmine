@@ -29,6 +29,32 @@ class RemixRendererCameraFrameTest {
     }
 
     @Test
+    void cameraProjectionWaitsForVanillaFieldOfViewInitialization() {
+        assertFalse(RemixRenderer.isCameraProjectionReady(0.0f, 1280, 720));
+        assertTrue(RemixRenderer.isCameraProjectionReady(76.90074f, 1280, 720));
+    }
+
+    @Test
+    void cameraProjectionAcceptsFinitePerspectiveAnglesWithoutClamping() {
+        for (float fieldOfView : new float[] {0.01f, 30.0f, 70.0f, 110.0f, 179.99f}) {
+            assertTrue(RemixRenderer.isCameraProjectionReady(fieldOfView, 1280, 720));
+        }
+        for (float fieldOfView : new float[] {
+                -70.0f, 180.0f, Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY}) {
+            assertFalse(RemixRenderer.isCameraProjectionReady(fieldOfView, 1280, 720));
+        }
+    }
+
+    @Test
+    void cameraProjectionWaitsForADrawableFramebuffer() {
+        assertFalse(RemixRenderer.isCameraProjectionReady(70.0f, 0, 720));
+        assertFalse(RemixRenderer.isCameraProjectionReady(70.0f, 1280, 0));
+        assertFalse(RemixRenderer.isCameraProjectionReady(70.0f, -1, 720));
+        assertFalse(RemixRenderer.isCameraProjectionReady(70.0f, 1280, -1));
+        assertTrue(RemixRenderer.isCameraProjectionReady(70.0f, 1, 1));
+    }
+
+    @Test
     void cameraErrorsStayLocalToTheCameraUpdate() throws Exception {
         RemixRenderer renderer = new RemixRenderer();
         Method update = RemixRenderer.class.getDeclaredMethod("updateCamera", Camera.class, float.class);
