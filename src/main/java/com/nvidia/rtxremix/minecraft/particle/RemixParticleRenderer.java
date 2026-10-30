@@ -134,6 +134,12 @@ public class RemixParticleRenderer {
         var camRot = client.gameRenderer.mainCamera().rotation();
         float qx = camRot.x, qy = camRot.y, qz = camRot.z, qw = camRot.w;
         ParticleBillboardBasis billboardBasis = ParticleBillboardBasis.fromCamera(qx, qy, qz, qw);
+        DynamicBucket blockBucket = null;
+        DynamicBucket itemBucket = null;
+        DynamicBucket particleBucket = null;
+        boolean blockBucketResolved = false;
+        boolean itemBucketResolved = false;
+        boolean particleBucketResolved = false;
 
         for (var entry : particleMap.entrySet()) {
             if (entry.getKey() != ParticleRenderType.SINGLE_QUADS) continue;
@@ -148,14 +154,33 @@ public class RemixParticleRenderer {
                 BillboardParticleAccessor billboard = (BillboardParticleAccessor) particle;
                 TextureAtlasSprite sprite = ((SpriteBillboardParticleAccessor) particle).getSprite();
                 if (sprite == null) continue;
-                boolean isTerrain = sprite.atlasLocation().equals(TextureAtlas.LOCATION_BLOCKS);
-                RemixMaterial material = resolveMaterial(sprite.atlasLocation(), blockTexMgr);
-                if (material == null || !material.isAlive()) continue;
-                int categoryFlags = isTerrain ? 0 : InstanceCategoryBit.PARTICLE;
-                int blendKind = isTerrain ? BLEND_TERRAIN : BLEND_PARTICLE;
-                DynamicBucket bucket = getOrCreateBucket(
-                        new BucketKey(material.getHandle(), categoryFlags, blendKind),
-                        material, categoryFlags, blendKind);
+                Identifier atlasId = sprite.atlasLocation();
+                DynamicBucket bucket;
+                if (atlasId.equals(TextureAtlas.LOCATION_BLOCKS)) {
+                    if (!blockBucketResolved) {
+                        blockBucket = getOrCreateBucket(blockTexMgr != null
+                                ? blockTexMgr.getAtlasMaterial(BlockTextureManager.L_CUTOUT) : null,
+                                0, BLEND_TERRAIN);
+                        blockBucketResolved = true;
+                    }
+                    bucket = blockBucket;
+                } else if (atlasId.equals(TextureAtlas.LOCATION_ITEMS)) {
+                    if (!itemBucketResolved) {
+                        itemBucket = getOrCreateBucket(itemAtlasManager.getMaterial(),
+                                InstanceCategoryBit.PARTICLE, BLEND_PARTICLE);
+                        itemBucketResolved = true;
+                    }
+                    bucket = itemBucket;
+                } else if (atlasId.equals(TextureAtlas.LOCATION_PARTICLES)) {
+                    if (!particleBucketResolved) {
+                        particleBucket = getOrCreateBucket(atlasManager.getMaterial(),
+                                InstanceCategoryBit.PARTICLE, BLEND_PARTICLE);
+                        particleBucketResolved = true;
+                    }
+                    bucket = particleBucket;
+                } else {
+                    continue;
+                }
                 if (bucket == null) continue;
                 int boundsMin = HardcodedVertex.packHalf2x16(sprite.getU0(), sprite.getV0());
                 int boundsMax = HardcodedVertex.packHalf2x16(sprite.getU1(), sprite.getV1());
@@ -290,16 +315,10 @@ public class RemixParticleRenderer {
         meshUpdatesThisFrame = 0;
     }
 
-    private RemixMaterial resolveMaterial(Identifier atlasId, BlockTextureManager blockTexMgr) {
-        if (atlasId.equals(TextureAtlas.LOCATION_BLOCKS)) {
-            return blockTexMgr != null ? blockTexMgr.getAtlasMaterial(BlockTextureManager.L_CUTOUT) : null;
-        }
-        if (atlasId.equals(TextureAtlas.LOCATION_ITEMS)) return itemAtlasManager.getMaterial();
-        return atlasId.equals(TextureAtlas.LOCATION_PARTICLES) ? atlasManager.getMaterial() : null;
-    }
-
-    private DynamicBucket getOrCreateBucket(BucketKey key, RemixMaterial material,
+    private DynamicBucket getOrCreateBucket(RemixMaterial material,
                                             int categoryFlags, int blendKind) {
+        if (material == null || !material.isAlive()) return null;
+        BucketKey key = new BucketKey(material.getHandle(), categoryFlags, blendKind);
         DynamicBucket bucket = buckets.get(key);
         if (bucket != null) {
             return bucket;
