@@ -4,11 +4,16 @@
  */
 package com.nvidia.rtxremix.minecraft.block;
 
-import net.minecraft.nbt.NbtCompound;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 
 class CopperBeaconAxisStateTest {
 
@@ -105,11 +110,24 @@ class CopperBeaconAxisStateTest {
                 18.5f,
                 7.25f,
                 987_654_321L);
-        NbtCompound nbt = new NbtCompound();
+        CompoundTag nbt = new CompoundTag();
         original.writeNbt(nbt);
 
         assertEquals(original, CopperBeaconAxisState.readNbt(nbt));
-        assertEquals(CopperBeaconAxisState.defaults(), CopperBeaconAxisState.readNbt(new NbtCompound()));
+        assertEquals(CopperBeaconAxisState.defaults(), CopperBeaconAxisState.readNbt(new CompoundTag()));
+    }
+
+    @Test
+    void animationCodecUsesTheSameFieldsThroughTheNewBlockEntityStorageApi() {
+        CopperBeaconAxisState original = axis(75, CopperBeaconAnimationMode.OSCILLATE, -20, 123456);
+        var output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
+        output.store("yaw", CopperBeaconAxisState.CODEC, original);
+        CompoundTag expected = new CompoundTag();
+        original.writeNbt(expected);
+        assertEquals(expected, output.buildResult().getCompound("yaw").orElseThrow());
+
+        var input = TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, output.buildResult());
+        assertEquals(original, input.read("yaw", CopperBeaconAxisState.CODEC).orElseThrow());
     }
 
     private static CopperBeaconAxisState axis(

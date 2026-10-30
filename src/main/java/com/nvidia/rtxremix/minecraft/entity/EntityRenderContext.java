@@ -4,14 +4,18 @@
  */
 package com.nvidia.rtxremix.minecraft.entity;
 
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.Hand;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemDisplayContext;
 
 /**
  * Thread-local context tracking whether a Remix capture is open and which rigid
@@ -28,7 +32,7 @@ import java.util.List;
  *
  * <h3>Rigid pivot tracking</h3>
  * <p>Each time the pose matrix changes during vertex capture, a transform
- * index is assigned via {@link #pushBone(Matrix4f)}. The submitter pairs the
+ * index is assigned via {@link #pushBone(Matrix4fc)}. The submitter pairs the
  * local cuboid/item mesh with that ordinary instance transform; no vertex
  * deformation or Remix skinning is involved.
  */
@@ -46,10 +50,13 @@ public final class EntityRenderContext {
     private boolean remixPass;
 
     /** First-person hand currently being rendered, or null outside that path. */
-    private Hand activeHand;
+    private InteractionHand activeHand;
     /** Entity whose hand-held item is being rendered, or null outside a held-item render. */
     private LivingEntity heldItemHolder;
     private int blockItemLayer = NO_BLOCK_ITEM;
+    private BlockState blockItemState;
+    private ItemStack itemStack;
+    private ItemDisplayContext itemDisplayContext;
 
     /** The viewer's eye in the capture's space, valid while {@link #eyeKnown}. */
     private final Vector3f eye = new Vector3f();
@@ -62,7 +69,7 @@ public final class EntityRenderContext {
      *  Pre-allocated Matrix4f objects are reused across captures to avoid GC pressure. */
     private final List<Matrix4f> boneTransforms = new ArrayList<>();
     /** Hand ownership parallel to {@link #boneTransforms}; enum values are allocation-free. */
-    private final List<Hand> transformHands = new ArrayList<>();
+    private final List<InteractionHand> transformHands = new ArrayList<>();
     private int bonePoolHighWater = 0;
 
     // ---- Static access ----
@@ -87,6 +94,9 @@ public final class EntityRenderContext {
         this.activeHand = null;
         this.heldItemHolder = null;
         this.blockItemLayer = NO_BLOCK_ITEM;
+        this.blockItemState = null;
+        this.itemStack = null;
+        this.itemDisplayContext = null;
         this.eyeKnown = false;
         this.boneCounter = 0;
         // Bone transforms are not cleared: the pre-allocated Matrix4f objects are
@@ -121,6 +131,9 @@ public final class EntityRenderContext {
         this.activeHand = null;
         this.heldItemHolder = null;
         this.blockItemLayer = NO_BLOCK_ITEM;
+        this.blockItemState = null;
+        this.itemStack = null;
+        this.itemDisplayContext = null;
         this.eyeKnown = false;
     }
 
@@ -146,6 +159,13 @@ public final class EntityRenderContext {
     public void setBlockItemLayer(int blockItemLayer) {
         this.blockItemLayer = blockItemLayer;
     }
+
+    public BlockState getBlockItemState() { return blockItemState; }
+    public void setBlockItemState(BlockState state) { blockItemState = state; }
+    public ItemStack getItemStack() { return itemStack; }
+    public ItemDisplayContext getItemDisplayContext() { return itemDisplayContext; }
+    public void setItem(ItemStack stack, ItemDisplayContext mode) { itemStack = stack; itemDisplayContext = mode; }
+    public InteractionHand getActiveHand() { return activeHand; }
 
     /**
      * The viewer's eye in the capture's space, or null when the capture owner
@@ -174,7 +194,7 @@ public final class EntityRenderContext {
      * @param pose the 4x4 model-to-world transform at this cuboid
      * @return the bone index assigned to this cuboid
      */
-    public int pushBone(Matrix4f pose) {
+    public int pushBone(Matrix4fc pose) {
         int index = boneCounter++;
         if (index < boneTransforms.size()) {
             boneTransforms.get(index).set(pose);
@@ -199,7 +219,7 @@ public final class EntityRenderContext {
     }
 
     /** Marks subsequent first-person transforms as belonging to {@code hand}. */
-    public void setActiveHand(Hand hand) {
+    public void setActiveHand(InteractionHand hand) {
         activeHand = hand;
     }
 
@@ -232,7 +252,7 @@ public final class EntityRenderContext {
     }
 
     /** Returns first-person hand ownership for a captured transform, if any. */
-    public Hand handForTransform(int transformIndex) {
+    public InteractionHand handForTransform(int transformIndex) {
         return transformIndex >= 0 && transformIndex < boneCounter
                 ? transformHands.get(transformIndex)
                 : null;

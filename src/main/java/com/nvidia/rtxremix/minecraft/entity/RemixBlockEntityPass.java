@@ -4,20 +4,19 @@
  */
 package com.nvidia.rtxremix.minecraft.entity;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.nvidia.rtxremix.InstanceCategoryBit;
-import com.nvidia.rtxremix.minecraft.mixin.EntityRenderDispatcherAccessor;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.entity.EntityRenderDispatcher;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.IdentityHashMap;
 import java.util.List;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Captures block-entity geometry where vanilla dispatches it and submits it through
@@ -62,7 +61,7 @@ public final class RemixBlockEntityPass {
      */
     @FunctionalInterface
     public interface BlockEntityRenderCall {
-        void render(MatrixStack matrices, VertexConsumerProvider provider);
+        void render(PoseStack matrices, SubmitNodeCollector provider);
     }
 
     /**
@@ -98,25 +97,23 @@ public final class RemixBlockEntityPass {
                         EntityRenderDispatcher dispatcher, RemixEntitySubmitter submitter) {
         long captureStart = System.nanoTime();
         EntityRenderContext ctx = EntityRenderContext.get();
-        boolean hadShadows = ((EntityRenderDispatcherAccessor) dispatcher).rtxremix$getRenderShadows();
-        dispatcher.setRenderShadows(false);
         provider.beginEntity();
-        matrices.push();
+        matrices.pushPose();
         ctx.begin(true);
         List<RemixVertexConsumerProvider.CapturedLayer> layers;
         try {
-            call.render(matrices, provider);
+            call.render(matrices, provider.submits());
             layers = provider.endEntity();
         } catch (Exception e) {
-            failures.noteFailure("capturing", "block entity " + typeKey(be), be.getPos(), e);
+            failures.noteFailure("capturing", "block entity " + typeKey(be), be.getBlockPos(), e);
             return;
         } finally {
             // All three restore even if the renderer threw mid-traversal: the identity
             // root returns every pooled entry, the player's shadow setting comes back,
             // and a capture left open would make the next one look nested. The bone
             // count stays readable for the snapshot below.
+            provider.endCapture();
             matrices.reset();
-            dispatcher.setRenderShadows(hadShadows);
             ctx.reset();
         }
         frameCaptureNanos += System.nanoTime() - captureStart;
@@ -130,7 +127,7 @@ public final class RemixBlockEntityPass {
         reusableBoneData = ctx.snapshotBoneTransforms(reusableBoneData);
         RemixEntityPass.EntityCaptureResult result = new RemixEntityPass.EntityCaptureResult(
                 be,
-                Vec3d.of(be.getPos()),
+                Vec3.atLowerCornerOf(be.getBlockPos()),
                 0.0f,
                 layers,
                 reusableBoneData,
@@ -154,7 +151,7 @@ public final class RemixBlockEntityPass {
             submitter.submitEntity(result, STATIC_WORLD_CANVASES);
             frameCount++;
         } catch (Exception e) {
-            failures.noteFailure("submitting", "block entity " + typeKey(be), be.getPos(), e);
+            failures.noteFailure("submitting", "block entity " + typeKey(be), be.getBlockPos(), e);
         } finally {
             frameSubmitNanos += System.nanoTime() - submitStart;
             frameParts += submitter.getLastDrawCount() - partsBefore;
@@ -181,6 +178,6 @@ public final class RemixBlockEntityPass {
 
     private String typeKey(BlockEntity be) {
         return typeKeyCache.computeIfAbsent(be.getType(),
-                type -> Registries.BLOCK_ENTITY_TYPE.getId(type).toString());
+                type -> BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(type).toString());
     }
 }

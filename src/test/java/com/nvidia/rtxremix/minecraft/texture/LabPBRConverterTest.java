@@ -4,14 +4,47 @@
  */
 package com.nvidia.rtxremix.minecraft.texture;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LabPBRConverterTest {
+
+    @Test
+    void nativeImageChannelsKeepTheirLabPbrMeaning() {
+        try (NativeImage normal = new NativeImage(1, 1, true);
+             NativeImage specular = new NativeImage(1, 1, true)) {
+            normal.setPixel(0, 0, 0xFF804020);
+            specular.setPixel(0, 0, 0x7F80F041);
+
+            assertArrayEquals(bytes(0x20), LabPBRConverter.buildAOTable(normal),
+                    "AO is the normal texture's blue channel");
+            assertArrayEquals(bytes(0x7F), LabPBRConverter.buildSAlphaTable(specular));
+            assertArrayEquals(bytes(0xFF), LabPBRConverter.buildSMetallicTable(specular),
+                    "metalness is derived from green, not red");
+            assertArrayEquals(bytes(63), LabPBRConverter.buildSRoughnessTable(specular));
+
+            byte[] albedo = bytes(200, 100, 50, 255);
+            byte[] emissive = new byte[4];
+            LabPBRConverter.blitEmissive(emissive, 1, albedo, specular, 0, 0, 1, 1, 0);
+            assertArrayEquals(bytes(100, 50, 25, 255), emissive);
+        }
+    }
+
+    @Test
+    void singleScatteringAlbedoPreservesRgbAndKeepsTheOutputOpaque() {
+        try (NativeImage albedo = new NativeImage(1, 1, true)) {
+            albedo.setPixel(0, 0, 0x7F123456);
+            byte[] destination = new byte[4];
+            LabPBRConverter.blitSingleScatteringAlbedo(destination, 1, albedo, 0, 0, 1, 1);
+            assertArrayEquals(bytes(0x12, 0x34, 0x56, 255), destination);
+        }
+    }
 
     @Test
     void applyAoToPatchSamplesTheAoTableAtTheUploadSourceOffset() {

@@ -4,14 +4,12 @@
  */
 package com.nvidia.rtxremix.minecraft.sky;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.nvidia.rtxremix.minecraft.light.LightManager.SkyLightState;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import com.nvidia.rtxremix.minecraft.profiling.ProfileScope;
-import net.minecraft.client.gl.ShaderProgram;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
@@ -23,6 +21,7 @@ import org.lwjgl.opengl.GL21;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL31;
 import org.lwjgl.opengl.GL32;
+import org.lwjgl.opengl.GL33;
 import org.lwjgl.opengl.GL42;
 import org.lwjgl.opengl.GL43;
 import org.lwjgl.opengl.GL44;
@@ -51,15 +50,14 @@ final class AtmosphericSkyGenerator {
     private static final int PASS_SINGLE_SCATTERING = 1;
     private static final int PASS_REDUCE_AND_COMPOSE = 2;
     private static final int READBACK_RING_SIZE = 3;
-    // The render boundary owns texture unit 0 and an unbound pixel-pack buffer;
-    // dedicated units avoid synchronous binding queries on every sky update.
-    private static final int FINAL_SKY_TEXTURE_UNIT = 14;
-    private static final int TRANSMITTANCE_TEXTURE_UNIT = 15;
+    private static final int FINAL_SKY_TEXTURE_UNIT = SkyComputeGlState.FINAL_SKY_TEXTURE_UNIT;
+    private static final int TRANSMITTANCE_TEXTURE_UNIT = SkyComputeGlState.TRANSMITTANCE_TEXTURE_UNIT;
     private static final String SHADER_RESOURCE =
             "/assets/rtx-remix-renderer/shaders/sky_atmosphere.comp";
 
     private final float[] sunDirection = new float[3];
     private final float[] moonDirection = new float[3];
+    private final SkyComputeGlState glState = new SkyComputeGlState();
     private final int width;
     private final int upperHeight;
     private final int outputBytes;
@@ -107,36 +105,36 @@ final class AtmosphericSkyGenerator {
         outputBytes = width * height * 4 * Short.BYTES;
         readbackBytes = width * (height + 1) * 4 * Short.BYTES;
 
-        program = createProgram(loadShaderSource(width, height));
-        passLocation = uniformLocation("Pass");
-        transmittanceLutLocation =
-                uniformLocation("TransmittanceLut");
-
-        transmittanceLut = createTexture(
-                LUT_WIDTH,
-                LUT_HEIGHT,
-                GL30.GL_RGBA32F,
-                GL11.GL_LINEAR);
-        upperSingleTexture = createTexture(
-                width,
-                upperHeight,
-                GL30.GL_RGBA32F,
-                GL11.GL_NEAREST);
-        upperViewTexture = createTexture(
-                width,
-                upperHeight,
-                GL30.GL_RGBA32F,
-                GL11.GL_NEAREST);
-        finalSkyTexture = createTexture(
-                width,
-                height + 1,
-                GL30.GL_RGBA16F,
-                GL11.GL_NEAREST);
-        createSkyParametersBuffer();
-        createReadbackBuffers();
-
-        int previousProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+        glState.save();
         try {
+            program = createProgram(loadShaderSource(width, height));
+            passLocation = uniformLocation("Pass");
+            transmittanceLutLocation =
+                    uniformLocation("TransmittanceLut");
+
+            transmittanceLut = createTexture(
+                    LUT_WIDTH,
+                    LUT_HEIGHT,
+                    GL30.GL_RGBA32F,
+                    GL11.GL_LINEAR);
+            upperSingleTexture = createTexture(
+                    width,
+                    upperHeight,
+                    GL30.GL_RGBA32F,
+                    GL11.GL_NEAREST);
+            upperViewTexture = createTexture(
+                    width,
+                    upperHeight,
+                    GL30.GL_RGBA32F,
+                    GL11.GL_NEAREST);
+            finalSkyTexture = createTexture(
+                    width,
+                    height + 1,
+                    GL30.GL_RGBA16F,
+                    GL11.GL_NEAREST);
+            createSkyParametersBuffer();
+            createReadbackBuffers();
+
             GL20.glUseProgram(program);
             GL20.glUniform1i(
                     transmittanceLutLocation,
@@ -150,11 +148,13 @@ final class AtmosphericSkyGenerator {
             GL42.glMemoryBarrier(
                     GL42.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT
                             | GL42.GL_TEXTURE_FETCH_BARRIER_BIT);
+            checkGlError("initialize atmospheric sky generator");
+        } catch (RuntimeException | Error failure) {
+            destroy();
+            throw failure;
         } finally {
-            unbindImages();
-            GL20.glUseProgram(previousProgram);
+            glState.restore();
         }
-        checkGlError("initialize atmospheric sky generator");
     }
 
     /**
@@ -211,12 +211,9 @@ final class AtmosphericSkyGenerator {
             }
         }
 
-        ShaderProgram previousProgram;
         try (ProfileScope ignored =
                 ProfileScope.begin("Sky.ProceduralGeneration.StateSave")) {
-            previousProgram = RenderSystem.isOnRenderThread()
-                    ? RenderSystem.getShader()
-                    : null;
+            glState.save();
         }
         try {
             try (ProfileScope ignored =
@@ -229,7 +226,7 @@ final class AtmosphericSkyGenerator {
                 GL11.glBindTexture(
                         GL11.GL_TEXTURE_2D,
                         transmittanceLut);
-                GL13.glActiveTexture(GL13.GL_TEXTURE0);
+                GL33.glBindSampler(TRANSMITTANCE_TEXTURE_UNIT, 0);
                 bindImages();
                 uploadSkyParameters();
             }
@@ -255,16 +252,7 @@ final class AtmosphericSkyGenerator {
             }
             return completedReadback;
         } finally {
-            unbindImages();
-            GL15.glBindBuffer(
-                    GL21.GL_PIXEL_PACK_BUFFER,
-                    0);
-            GL13.glActiveTexture(GL13.GL_TEXTURE0);
-            if (previousProgram != null) {
-                previousProgram.bind();
-            } else {
-                GL20.glUseProgram(0);
-            }
+            glState.restore();
         }
     }
 
@@ -275,11 +263,13 @@ final class AtmosphericSkyGenerator {
             throw new IllegalArgumentException(
                     "LUT readback buffer is smaller than " + requiredBytes);
         }
-        int previousTexture =
-                GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        glState.save();
         try {
             destination.clear();
             destination.limit(requiredBytes);
+            GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
+            SkyComputeGlState.prepareReadback();
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + FINAL_SKY_TEXTURE_UNIT);
             GL11.glBindTexture(
                     GL11.GL_TEXTURE_2D,
                     transmittanceLut);
@@ -291,9 +281,7 @@ final class AtmosphericSkyGenerator {
                     destination);
             destination.position(0);
         } finally {
-            GL11.glBindTexture(
-                    GL11.GL_TEXTURE_2D,
-                    previousTexture);
+            glState.restore();
         }
     }
 
@@ -409,6 +397,7 @@ final class AtmosphericSkyGenerator {
         GL15.glBindBuffer(
                 GL21.GL_PIXEL_PACK_BUFFER,
                 readbackBuffers[readbackWriteIndex]);
+        SkyComputeGlState.prepareReadback();
         GL13.glActiveTexture(
                 GL13.GL_TEXTURE0 + FINAL_SKY_TEXTURE_UNIT);
         GL11.glBindTexture(
@@ -424,29 +413,36 @@ final class AtmosphericSkyGenerator {
                 GL32.glFenceSync(
                         GL32.GL_SYNC_GPU_COMMANDS_COMPLETE,
                         0);
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
         readbackWriteIndex =
                 (readbackWriteIndex + 1) % READBACK_RING_SIZE;
         pendingReadbacks++;
     }
 
     private void destroyReadbackBuffers() {
-        for (int index = 0;
-                index < readbackBuffers.length;
-                index++) {
-            if (readbackFences[index] != 0L) {
-                GL32.glDeleteSync(readbackFences[index]);
-                readbackFences[index] = 0L;
+        int previousBuffer = GL11.glGetInteger(GL21.GL_PIXEL_PACK_BUFFER_BINDING);
+        try {
+            for (int index = 0;
+                    index < readbackBuffers.length;
+                    index++) {
+                if (readbackFences[index] != 0L) {
+                    GL32.glDeleteSync(readbackFences[index]);
+                    readbackFences[index] = 0L;
+                }
+                if (readbackBuffers[index] != 0) {
+                    if (previousBuffer == readbackBuffers[index]) {
+                        previousBuffer = 0;
+                    }
+                    GL15.glBindBuffer(
+                            GL21.GL_PIXEL_PACK_BUFFER,
+                            readbackBuffers[index]);
+                    GL15.glUnmapBuffer(GL21.GL_PIXEL_PACK_BUFFER);
+                    GL15.glDeleteBuffers(readbackBuffers[index]);
+                    readbackBuffers[index] = 0;
+                    mappedReadbacks[index] = null;
+                }
             }
-            if (readbackBuffers[index] != 0) {
-                GL15.glBindBuffer(
-                        GL21.GL_PIXEL_PACK_BUFFER,
-                        readbackBuffers[index]);
-                GL15.glUnmapBuffer(GL21.GL_PIXEL_PACK_BUFFER);
-                GL15.glDeleteBuffers(readbackBuffers[index]);
-                readbackBuffers[index] = 0;
-                mappedReadbacks[index] = null;
-            }
+        } finally {
+            GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, previousBuffer);
         }
         pendingReadbacks = 0;
         readbackReadIndex = 0;
@@ -563,19 +559,6 @@ final class AtmosphericSkyGenerator {
                 GL30.GL_RGBA16F);
     }
 
-    private static void unbindImages() {
-        for (int unit = 0; unit <= 3; unit++) {
-            GL42.glBindImageTexture(
-                    unit,
-                    0,
-                    0,
-                    false,
-                    0,
-                    GL15.GL_READ_WRITE,
-                    GL30.GL_RGBA32F);
-        }
-    }
-
     private static int createTexture(
             int width,
             int height,
@@ -602,16 +585,7 @@ final class AtmosphericSkyGenerator {
                     GL11.GL_TEXTURE_2D,
                     GL11.GL_TEXTURE_WRAP_T,
                     GL12.GL_CLAMP_TO_EDGE);
-            GL11.glTexImage2D(
-                    GL11.GL_TEXTURE_2D,
-                    0,
-                    internalFormat,
-                    width,
-                    height,
-                    0,
-                    GL11.GL_RGBA,
-                    GL11.GL_FLOAT,
-                    (ByteBuffer) null);
+            GL42.glTexStorage2D(GL11.GL_TEXTURE_2D, 1, internalFormat, width, height);
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
         }

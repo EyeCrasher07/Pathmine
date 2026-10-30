@@ -4,24 +4,23 @@
  */
 package com.nvidia.rtxremix.minecraft.entity;
 
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.util.Identifier;
-
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.resources.Identifier;
 
 /**
- * The {@link VertexConsumerProvider} every Remix capture pass renders into.
+ * The vertex consumers and feature submissions owned by one Remix capture pass.
  *
  * <p>Stands in for the vanilla {@code VertexConsumerProvider.Immediate} while an
  * entity, the first-person model or a block entity is rendered for Remix. For each
- * {@link RenderLayer} requested via {@link #getBuffer(RenderLayer)}, it returns a
+ * {@link RenderType} requested via {@link #getBuffer(RenderType)}, it returns a
  * part-recording {@link RemixCapturingConsumer} that records vertices alongside the
  * layer's texture {@link Identifier}.
  *
@@ -32,7 +31,13 @@ import java.util.Optional;
  *   <li>Call {@link #endEntity()} after rendering; it returns all captured layers</li>
  * </ol>
  */
-public class RemixVertexConsumerProvider implements VertexConsumerProvider {
+public class RemixVertexConsumerProvider {
+
+    private final RemixFeatureCapture features = new RemixFeatureCapture(this);
+
+    public SubmitNodeCollector submits() { return features.submits(); }
+
+    public void endCapture() { features.close(); }
 
     /**
      * Consumers created during the current entity's render, keyed by RenderLayer, in
@@ -40,7 +45,7 @@ public class RemixVertexConsumerProvider implements VertexConsumerProvider {
      * count is small, so parallel arrays with a linear scan replace a map: a map entry per
      * layer per entity was a steady allocation on the render thread.
      */
-    private RenderLayer[] activeLayers = new RenderLayer[8];
+    private RenderType[] activeLayers = new RenderType[8];
     private RemixCapturingConsumer[] activeConsumers = new RemixCapturingConsumer[8];
     private int activeCount;
 
@@ -56,6 +61,7 @@ public class RemixVertexConsumerProvider implements VertexConsumerProvider {
      * Begins capturing for a new entity. Clears previous capture state.
      */
     public void beginEntity() {
+        features.open();
         for (int i = 0; i < activeCount; i++) {
             RemixCapturingConsumer consumer = activeConsumers[i];
             consumer.clear();
@@ -72,6 +78,7 @@ public class RemixVertexConsumerProvider implements VertexConsumerProvider {
      * {@link #beginEntity()} call.
      */
     public List<CapturedLayer> endEntity() {
+        endCapture();
         resultBuffer.clear();
         for (int i = 0; i < activeCount; i++) {
             RemixCapturingConsumer consumer = activeConsumers[i];
@@ -91,8 +98,7 @@ public class RemixVertexConsumerProvider implements VertexConsumerProvider {
 
     // ---- VertexConsumerProvider ----
 
-    @Override
-    public VertexConsumer getBuffer(RenderLayer layer) {
+    public VertexConsumer getBuffer(RenderType layer) {
         // Reuse consumer for same layer within one entity (e.g. left arm + right arm)
         for (int i = 0; i < activeCount; i++) {
             if (activeLayers[i].equals(layer)) {
@@ -147,18 +153,18 @@ public class RemixVertexConsumerProvider implements VertexConsumerProvider {
      */
     public static final class CapturedLayer {
         private final RemixCapturingConsumer consumer;
-        private RenderLayer renderLayer;
+        private RenderType renderLayer;
 
         CapturedLayer(RemixCapturingConsumer consumer) {
             this.consumer = consumer;
         }
 
-        void bind(RenderLayer renderLayer) {
+        void bind(RenderType renderLayer) {
             this.renderLayer = renderLayer;
         }
 
         public Identifier textureId() { return consumer.getTextureId(); }
-        public RenderLayer renderLayer() { return renderLayer; }
+        public RenderType renderLayer() { return renderLayer; }
         public RemixCapturingConsumer consumer() { return consumer; }
         public int vertexCount() { return consumer.getVertexCount(); }
         /** Order in which the entity first requested this layer; scales the shell offset. */
@@ -173,11 +179,14 @@ public class RemixVertexConsumerProvider implements VertexConsumerProvider {
 
     private static class NoOpVertexConsumer implements VertexConsumer {
         static final NoOpVertexConsumer INSTANCE = new NoOpVertexConsumer();
-        @Override public VertexConsumer vertex(float x, float y, float z) { return this; }
-        @Override public VertexConsumer color(int r, int g, int b, int a) { return this; }
-        @Override public VertexConsumer texture(float u, float v) { return this; }
-        @Override public VertexConsumer overlay(int u, int v) { return this; }
-        @Override public VertexConsumer light(int u, int v) { return this; }
-        @Override public VertexConsumer normal(float x, float y, float z) { return this; }
+        @Override public VertexConsumer addVertex(float x, float y, float z) { return this; }
+        @Override public VertexConsumer setColor(int r, int g, int b, int a) { return this; }
+        @Override public VertexConsumer setColor(int color) { return this; }
+        @Override public VertexConsumer setUv(float u, float v) { return this; }
+        @Override public VertexConsumer setUv1(int u, int v) { return this; }
+        @Override public VertexConsumer setUv2(int u, int v) { return this; }
+        @Override public VertexConsumer setNormal(float x, float y, float z) { return this; }
+        @Override public VertexConsumer setUv3(float u, float v) { return this; }
+        @Override public VertexConsumer setLineWidth(float width) { return this; }
     }
 }

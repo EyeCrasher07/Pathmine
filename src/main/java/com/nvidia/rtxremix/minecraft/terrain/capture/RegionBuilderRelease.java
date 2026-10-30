@@ -5,7 +5,7 @@
 package com.nvidia.rtxremix.minecraft.terrain.capture;
 
 /**
- * A render region builder's reference on the chunk snapshots it cached. The builder holds one
+ * A render region builder's reference on the section snapshots it cached. The builder holds one
  * reference per snapshot from creation until its caller is done scheduling with it, so a
  * snapshot handed to several regions cannot be recycled by an early task while a later region
  * is still being assembled from the same cache.

@@ -6,47 +6,45 @@ package com.nvidia.rtxremix.minecraft.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.nvidia.rtxremix.minecraft.RemixRenderer;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.nvidia.rtxremix.minecraft.RtxRemixMod;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.entity.BlockEntityRenderDispatcher;
-import net.minecraft.client.util.math.MatrixStack;
+import com.nvidia.rtxremix.minecraft.entity.CapturedRenderState;
+import com.nvidia.rtxremix.minecraft.entity.EntityRenderContext;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Captures block entities where vanilla renders them, instead of rendering them twice.
- *
- * <p>Vanilla evaluates the block-entity renderer here and writes it to OpenGL. Each
- * dispatch is offered to {@code RemixRenderer.renderBlockEntityInPlace}, which runs the
- * same renderer against the Remix capture stack and provider and submits the result;
- * the OpenGL write never happens. Vanilla's own matrix stack and provider are
- * deliberately not forwarded: the stack is camera-relative, and the capture supplies an
- * identity one so the geometry stays block-local. When Remix declines, vanilla renders
- * as usual.
- *
- * <p>{@code renderEntity}, which held items reach through {@code BuiltinModelItemRenderer},
- * is not wrapped: a block entity rendered inside an entity capture arrives through that
- * entity's provider and becomes that entity's parts.
- */
 @Mixin(BlockEntityRenderDispatcher.class)
 public abstract class BlockEntityRenderDispatcherMixin {
-
-    @WrapMethod(
-        method = "render(Lnet/minecraft/block/entity/BlockEntity;FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;)V"
-    )
-    private <E extends BlockEntity> void rtxremix$captureBlockEntityInPlace(
-            E be, float tickDelta, MatrixStack matrices,
-            VertexConsumerProvider provider, Operation<Void> original) {
-        RtxRemixMod mod = RtxRemixMod.getInstance();
-        RemixRenderer renderer = mod == null ? null : mod.getRenderer();
-        boolean captured = renderer != null
-                && be.hasWorld()
-                && renderer.renderBlockEntityInPlace(be,
-                        (captureMatrices, captureProvider) ->
-                                original.call(be, tickDelta, captureMatrices, captureProvider));
-        if (!captured) {
-            original.call(be, tickDelta, matrices, provider);
+    @SuppressWarnings("unchecked")
+    @Inject(method = "tryExtractRenderState", at = @At("RETURN"))
+    private void rtxremix$recordSource(BlockEntity blockEntity, float partialTick,
+            ModelFeatureRenderer.CrumblingOverlay breakProgress, boolean global,
+            CallbackInfoReturnable<BlockEntityRenderState> ci) {
+        if (ci.getReturnValue() != null) {
+            ((CapturedRenderState<BlockEntity>) ci.getReturnValue()).rtxremix$setSource(blockEntity, partialTick);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    @WrapMethod(method = "submit")
+    private void rtxremix$captureBlockEntity(BlockEntityRenderState state, PoseStack matrices,
+            SubmitNodeCollector output, CameraRenderState camera, Operation<Void> original) {
+        var mod = RtxRemixMod.getInstance();
+        var renderer = mod == null ? null : mod.getRenderer();
+        BlockEntity owner = ((CapturedRenderState<BlockEntity>) state).rtxremix$owner();
+        if (!EntityRenderContext.get().isActive() && renderer != null && owner != null && owner.hasLevel()
+                && renderer.renderBlockEntityInPlace(owner, (captureMatrices, captureOutput) ->
+                        original.call(state, captureMatrices, captureOutput, camera))) {
+            return;
+        }
+        original.call(state, matrices, output, camera);
     }
 }

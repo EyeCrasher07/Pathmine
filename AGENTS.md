@@ -11,7 +11,7 @@ Rendering changes also need the native/GPU checks in `runtime/native/README.md`.
 
 ## Project Overview
 
-`rtx-remix-minecraft` is a Fabric mod that renders Minecraft 1.21.1 through
+`rtx-remix-minecraft` is a Fabric mod that renders Minecraft 26.3 through
 NVIDIA RTX Remix. It captures terrain, entities, particles, sky, and clouds from
 the client and submits them to the Remix runtime as a path-traced scene. The
 Java facade and JNI bridge are tracked under `rtxremix-java/`; the native
@@ -34,8 +34,8 @@ subdirectory may carry its own `AGENTS.md`; read the nearest one as well.
 
 ## Build, Run, Package, Test
 
-Java 21 and a C++ toolchain are required. The published Remix runtime supports
-Windows; the native Linux port is in progress. Windows Gradle builds fetch a
+Java 25 and a C++ toolchain are required for the current 26.3 target. The published NVIDIA runtime supports
+Windows; Pathmine includes an experimental native Linux runtime. Windows Gradle builds fetch a
 missing runtime automatically. Linux builds compile the ELF JNI bridge without
 substituting the Windows runtime. [Getting Started](docs/GETTING_STARTED.md)
 covers local overrides.
@@ -386,7 +386,7 @@ The root Gradle build compiles the Java sources directly and builds
 `remixbridge.dll` into `build/native/{win64|arm64}/`, or `libremixbridge.so` into
 `build/native/linux64/` through CMake. There is no separate
 wrapper Java build or example launcher. The native build needs Visual Studio
-C++ tools and `JAVA_HOME` pointing to a 64-bit JDK 21. It uses the
+C++ tools and `JAVA_HOME` pointing to a 64-bit JDK 25 for this Minecraft target. It uses the
 copied header unless `REMIX_INCLUDE` explicitly selects another directory.
 Windows x64 and ARM64 remain the upstream binary runtime targets. The experimental
 Linux x64 bridge uses the POSIX Gradle wrapper and CMake entry point. Its

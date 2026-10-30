@@ -6,33 +6,34 @@ package com.nvidia.rtxremix.minecraft.mixin;
 
 import com.nvidia.rtxremix.minecraft.RtxRemixMod;
 import com.nvidia.rtxremix.minecraft.RemixRenderer;
-import com.mojang.blaze3d.systems.RenderSystem;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.renderpearl.backend.opengl.GlSurface;
+import org.lwjgl.sdl.SDLVideo;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Integrates {@link RemixRenderer#presentFrameVk()} with vanilla's buffer swap
- * inside {@code RenderSystem.flipFrame}. Before initialization, or if it fails,
- * the GLFW swap runs unchanged.
+ * inside the OpenGL surface presentation. Before initialization the SDL swap
+ * runs unchanged. Windows direct presentation still belongs to Remix.
  */
-@Mixin(RenderSystem.class)
+@Mixin(GlSurface.class)
 public abstract class RenderSystemMixin {
 
     @Redirect(
-        method = "flipFrame",
-        at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwSwapBuffers(J)V")
+        method = "present",
+        at = @At(value = "INVOKE", target = "Lorg/lwjgl/sdl/SDLVideo;SDL_GL_SwapWindow(J)Z", remap = false)
     )
-    private static void rtxremix$redirectSwapBuffers(long window) {
+    private boolean rtxremix$redirectSwapBuffers(long window) {
         RemixRenderer renderer = RtxRemixMod.renderer;
         if (renderer != null && renderer.isInitialized()) {
             renderer.presentFrameVk();
             if (renderer.presentsThroughOpenGl()) {
-                GLFW.glfwSwapBuffers(window);
+                return SDLVideo.SDL_GL_SwapWindow(window);
             }
+            return true;
         } else {
-            GLFW.glfwSwapBuffers(window);
+            return SDLVideo.SDL_GL_SwapWindow(window);
         }
     }
 }

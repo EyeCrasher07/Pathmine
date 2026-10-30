@@ -4,16 +4,31 @@
  */
 package com.nvidia.rtxremix.minecraft.logic;
 
-import net.minecraft.datafixer.DataFixTypes;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.registry.RegistryWrapper;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.Dynamic;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.NumericTag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.PersistentState;
+import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.level.storage.SavedDataStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -28,10 +43,10 @@ import java.util.Objects;
  * in {@link ZoneRegistry}; it never reads this server-thread state directly.
  *
  * <p>The state is attached to the overworld's persistent-state manager so all
- * definitions live in one {@code data/rtx_remix_zones.dat} file, and a zone is
+ * definitions live under one saved-data type, and a zone is
  * global to the save rather than scoped to a dimension.</p>
  */
-public final class ZonePersistentState extends PersistentState {
+public final class ZonePersistentState extends SavedData {
     private static final Logger LOGGER = LoggerFactory.getLogger(ZonePersistentState.class);
     private static final String DATA_ID = "rtx_remix_zones";
     private static final int SCHEMA_VERSION = 1;
@@ -44,13 +59,17 @@ public final class ZonePersistentState extends PersistentState {
     private static final String SPHERE_SHAPE = "sphere";
     private static final String BOX_SHAPE = "box";
 
-    private static final PersistentState.Type<ZonePersistentState> TYPE =
-            new PersistentState.Type<>(ZonePersistentState::new,
-                    ZonePersistentState::fromNbt,
-                    DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
+    private static final Codec<ZonePersistentState> CODEC = Codec.PASSTHROUGH.comapFlatMap(
+            dynamic -> dynamic.convert(NbtOps.INSTANCE).getValue() instanceof CompoundTag compound
+                    ? DataResult.success(fromNbt(compound))
+                    : DataResult.error(() -> "Zone state must be a compound tag"),
+            state -> new Dynamic<>(NbtOps.INSTANCE, state.toNbt()));
+    static final SavedDataType<ZonePersistentState> TYPE = new SavedDataType<>(
+            Identifier.withDefaultNamespace(DATA_ID), ZonePersistentState::new, CODEC,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
     private final Map<String, ZoneDefinition> zonesByName = new HashMap<>();
-    private final boolean writable;
+    private boolean writable;
 
     ZonePersistentState() {
         this(true);
@@ -70,7 +89,7 @@ public final class ZonePersistentState extends PersistentState {
      * object it does not need.</p>
      */
     public static ZonePersistentState getOrCreate(MinecraftServer server) {
-        return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, DATA_ID);
+        return getOrCreate(server.overworld().getDataStorage(), server.getWorldPath(LevelResource.ROOT));
     }
 
     /**
@@ -85,7 +104,37 @@ public final class ZonePersistentState extends PersistentState {
      * depends on that behavior staying as it is.</p>
      */
     public static ZonePersistentState getIfPresent(MinecraftServer server) {
-        return server.getOverworld().getPersistentStateManager().get(TYPE, DATA_ID);
+        return getIfPresent(server.overworld().getDataStorage(), server.getWorldPath(LevelResource.ROOT));
+    }
+
+    static ZonePersistentState getOrCreate(SavedDataStorage storage, Path worldRoot) {
+        ZonePersistentState state = getIfPresent(storage, worldRoot);
+        return state != null ? state : storage.computeIfAbsent(TYPE);
+    }
+
+    static ZonePersistentState getIfPresent(SavedDataStorage storage, Path worldRoot) {
+        ZonePersistentState state = storage.get(TYPE);
+        if (state != null) return state;
+
+        Path dataDirectory = DimensionType.getStorageFolder(Level.OVERWORLD, worldRoot).resolve(LevelResource.DATA.id());
+        Path target = TYPE.id().withSuffix(".dat").resolveAgainst(dataDirectory);
+        if (!Files.notExists(target)) {
+            throw new IllegalStateException("Cannot load saved zone data at " + target + "; refusing to overwrite it");
+        }
+        Path legacy = worldRoot.resolve("data").resolve(DATA_ID + ".dat");
+        if (Files.notExists(legacy)) return null;
+
+        try {
+            CompoundTag root = NbtIo.readCompressed(legacy, NbtAccounter.unlimitedHeap());
+            CompoundTag data = root.getCompound("data")
+                    .orElseThrow(() -> new IllegalArgumentException("Missing zone data compound"));
+            state = CODEC.parse(NbtOps.INSTANCE, data).getOrThrow();
+            state.requireWritable();
+        } catch (IOException | IllegalArgumentException | IllegalStateException e) {
+            throw new IllegalStateException("Cannot import legacy zone data at " + legacy + "; leaving it unchanged", e);
+        }
+        storage.set(TYPE, state);
+        return state;
     }
 
     /** Immutable, name-sorted copy safe to publish to the client/render registry. */
@@ -104,7 +153,7 @@ public final class ZonePersistentState extends PersistentState {
             return false;
         }
         zonesByName.put(zone.name(), zone);
-        markDirty();
+        setDirty();
         return true;
     }
 
@@ -114,14 +163,14 @@ public final class ZonePersistentState extends PersistentState {
         if (zonesByName.remove(name) == null) {
             return false;
         }
-        markDirty();
+        setDirty();
         return true;
     }
 
-    @Override
-    public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+    CompoundTag toNbt() {
+        CompoundTag nbt = new CompoundTag();
         nbt.putInt(VERSION_KEY, SCHEMA_VERSION);
-        NbtList zones = new NbtList();
+        ListTag zones = new ListTag();
         for (ZoneDefinition zone : snapshot()) {
             zones.add(writeZone(zone));
         }
@@ -129,32 +178,34 @@ public final class ZonePersistentState extends PersistentState {
         return nbt;
     }
 
-    static ZonePersistentState fromNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        if (!nbt.contains(VERSION_KEY, NbtElement.INT_TYPE)) {
+    static ZonePersistentState fromNbt(CompoundTag nbt) {
+        if (!(nbt.get(VERSION_KEY) instanceof IntTag versionTag)) {
             LOGGER.warn("Ignoring RTX Remix zone state without a schema version");
             return new ZonePersistentState(false);
         }
-        int version = nbt.getInt(VERSION_KEY);
+        int version = versionTag.intValue();
         if (version != SCHEMA_VERSION) {
             LOGGER.warn("Ignoring RTX Remix zone state schema version {} (expected {})",
                     version, SCHEMA_VERSION);
             return new ZonePersistentState(false);
         }
         ZonePersistentState state = new ZonePersistentState();
-        if (!nbt.contains(ZONES_KEY, NbtElement.LIST_TYPE)) {
+        if (!(nbt.get(ZONES_KEY) instanceof ListTag zones)) {
+            LOGGER.warn("Ignoring RTX Remix zone state without a zone list");
+            state.writable = false;
             return state;
         }
 
-        NbtList zones = nbt.getList(ZONES_KEY, NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < zones.size(); i++) {
             try {
-                ZoneDefinition zone = readZone(zones.getCompound(i));
+                ZoneDefinition zone = readZone(zones.getCompoundOrEmpty(i));
                 ZoneDefinition previous = state.zonesByName.put(zone.name(), zone);
                 if (previous != null) {
                     LOGGER.warn("Duplicate saved RTX Remix zone '{}'; using the last definition", zone.name());
                 }
             } catch (IllegalArgumentException e) {
                 LOGGER.warn("Ignoring malformed saved RTX Remix zone at index {}: {}", i, e.getMessage());
+                state.writable = false;
             }
         }
         return state;
@@ -163,12 +214,12 @@ public final class ZonePersistentState extends PersistentState {
     private void requireWritable() {
         if (!writable) {
             throw new IllegalStateException(
-                    "saved zone data uses an unsupported schema; refusing to overwrite it");
+                    "saved zone data is malformed or uses an unsupported schema; refusing to overwrite it");
         }
     }
 
-    private static NbtCompound writeZone(ZoneDefinition zone) {
-        NbtCompound nbt = new NbtCompound();
+    private static CompoundTag writeZone(ZoneDefinition zone) {
+        CompoundTag nbt = new CompoundTag();
         nbt.putString(NAME_KEY, zone.name());
         nbt.putString(CHANNEL_KEY, zone.channel());
         if (zone.isBox()) {
@@ -191,7 +242,7 @@ public final class ZonePersistentState extends PersistentState {
         return nbt;
     }
 
-    private static ZoneDefinition readZone(NbtCompound nbt) {
+    private static ZoneDefinition readZone(CompoundTag nbt) {
         String name = requireString(nbt, NAME_KEY);
         String channel = requireString(nbt, CHANNEL_KEY);
         String shape = requireString(nbt, SHAPE_KEY);
@@ -214,17 +265,14 @@ public final class ZonePersistentState extends PersistentState {
         };
     }
 
-    private static String requireString(NbtCompound nbt, String key) {
-        if (!nbt.contains(key, NbtElement.STRING_TYPE)) {
-            throw new IllegalArgumentException("missing string '" + key + "'");
-        }
-        return nbt.getString(key);
+    private static String requireString(CompoundTag nbt, String key) {
+        return nbt.getString(key).orElseThrow(() -> new IllegalArgumentException("missing string '" + key + "'"));
     }
 
-    private static double requireDouble(NbtCompound nbt, String key) {
-        if (!nbt.contains(key, NbtElement.NUMBER_TYPE)) {
+    private static double requireDouble(CompoundTag nbt, String key) {
+        if (!(nbt.get(key) instanceof NumericTag number)) {
             throw new IllegalArgumentException("missing number '" + key + "'");
         }
-        return nbt.getDouble(key);
+        return number.doubleValue();
     }
 }

@@ -3,11 +3,11 @@
 Path-traced Minecraft Java runtime powered by NVIDIA RTX Remix.
 
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-6B8E23.svg)](#)
+[![Minecraft](https://img.shields.io/badge/Minecraft-26.3-6B8E23.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D4.svg)](#)
 [![Status](https://img.shields.io/badge/Status-Experimental-orange.svg)](#)
 
-Pathmine preserves NVIDIA's renderer and Minecraft scene capture while adding a native Linux runtime for Minecraft Java. The project targets Minecraft Java 1.21.1 with Fabric and focuses on a native Linux port of the RTX Remix runtime.
+Pathmine preserves NVIDIA's renderer and Minecraft scene capture while adding a native Linux runtime for Minecraft Java. The current source targets Minecraft Java 26.3 with Fabric and Java 25. Minecraft 1.21.1 builds remain available from earlier releases.
 
 > Experimental project. Not an official NVIDIA release.
 
@@ -36,17 +36,18 @@ flowchart LR
 
 ## Scope and limitations
 
-- Current support: Minecraft Java 1.21.1 + Fabric, Java 21
+- Current source target: Minecraft Java 26.3 + Fabric, Java 25
+- Earlier release target: Minecraft Java 1.21.1 + Fabric, Java 21; use its matching JAR
 - Linux x86_64 runtime is experimental
-- Windows remains the reference platform for visual comparison
+- Windows and Linux x86_64 use native runtimes; the original Windows release remains the visual reference
 - Planned coverage: Minecraft Java 1.16.5–26.3, with Fabric and NeoForge where available
 - Full parity, runtime stability, and broad hardware compatibility are still under validation
 
 ## Development status
 
-- **Current focus:** stable native Windows and Linux operation on 1.21.1. Fixes for skylight loading, waiting for shaders when joining worlds on Linux, and switching RTX on Linux are merged into `main` and await a new release; initial camera setup and native shutdown remain under investigation.
+- **Current focus:** the experimental 26.3 Fabric port, including SDL3 window/input handling, the new rendering APIs, and Java 25. Packaged game tests have run on Windows and Linux. Held stained glass now uses separate first-person materials to preserve its color; that latest correction has been checked on Linux and still needs a Windows gameplay retest.
 - **Upstream progress:** the [shared Java facade is now compatible with Java 8](https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/commit/779e4e52080132f6332c8d0e1bc5e6600723762c), and an [experimental Windows Forge 1.12.2 bootstrap](https://github.com/NVIDIAGameWorks/rtx-remix-minecraft/commit/72e5dcefd468dcd20623615d26234181c18bd1e8) is available. The bootstrap does not yet capture terrain, entities, particles, or sky.
-- **Next:** follow upstream version and loader integrations, adapt them for native Windows and Linux, and verify each combination before adding it to supported builds. Java 8 and the additional versions are not part of the current Pathmine release.
+- **Next:** finish matched Windows/Linux verification and broader performance testing, then follow upstream version and loader integrations. The 26.3 source port does not provide the full planned version range, and Java 8 / Forge integrations are not included in this build.
 
 ## Features
 
@@ -62,8 +63,8 @@ flowchart LR
 ### Install
 
 1. Download the latest release from [GitHub Releases](https://github.com/EyeCrasher07/Pathmine/releases)
-2. Install Fabric for Minecraft Java 1.21.1
-3. Install the matching Fabric API
+2. Install Fabric for the Minecraft version named in the release
+3. Install the matching Fabric API and Java runtime: Java 25 for 26.3, Java 21 for 1.21.1
 4. Place both JARs in your instance's `mods/` directory
 
 ### Build

@@ -4,52 +4,46 @@
  */
 package com.nvidia.rtxremix.minecraft.mixin;
 
+import com.mojang.renderpearl.backend.opengl.GlBackend;
 import com.nvidia.rtxremix.minecraft.RtxRemixMod;
-import net.minecraft.client.util.Window;
+import org.lwjgl.sdl.SDLError;
+import org.lwjgl.sdl.SDLVideo;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MAJOR;
-import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MINOR;
-import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_CORE_PROFILE;
-import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_PROFILE;
-import static org.lwjgl.glfw.GLFW.glfwWindowHint;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Raises the OpenGL context the window is created with to what the Remix GL
- * interop needs, and logs the GLFW handle once the window exists.
+ * interop needs, after the OpenGL backend applies its defaults.
  */
-@Mixin(Window.class)
+@Mixin(GlBackend.class)
 public abstract class WindowMixin {
-    
-    @Shadow
-    private long handle;
-
     @Inject(
-        method = "<init>",
+        method = "createWindow",
         at = @At(
             value = "INVOKE",
-            target = "Lorg/lwjgl/glfw/GLFW;glfwCreateWindow(IILjava/lang/CharSequence;JJ)J",
+            target = "Lorg/lwjgl/sdl/SDLVideo;SDL_CreateWindow(Ljava/lang/CharSequence;IIJ)J",
             remap = false
         )
     )
-    private void rtxremix$requireOpenGl44(CallbackInfo ci) {
+    private void rtxremix$requireOpenGl44(CallbackInfoReturnable<Long> cir) {
         // Core-profile 4.4: the GL interop imports Remix's images and semaphores
         // through EXT_memory_object and EXT_semaphore.
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        if (!SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MAJOR_VERSION, 4)
+                || !SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MINOR_VERSION, 4)
+                || !SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_PROFILE_MASK,
+                        SDLVideo.SDL_GL_CONTEXT_PROFILE_CORE)) {
+            throw new IllegalStateException("Cannot request the Pathmine OpenGL context: " + SDLError.SDL_GetError());
+        }
     }
-    
-    /** Logs the GLFW window handle once the window exists. */
+
+    /** Logs the SDL window pointer, not a platform-specific native window handle. */
     @Inject(
-        method = "<init>",
-        at = @At("TAIL")
+        method = "createWindow",
+        at = @At("RETURN")
     )
-    private void rtxremix$onWindowCreated(CallbackInfo ci) {
-        RtxRemixMod.LOGGER.info("Window created with GLFW handle: {}", handle);
+    private void rtxremix$onWindowCreated(CallbackInfoReturnable<Long> cir) {
+        RtxRemixMod.LOGGER.info("OpenGL window created with SDL handle: {}", cir.getReturnValue());
     }
 }

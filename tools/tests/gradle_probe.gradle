@@ -7,7 +7,7 @@ import java.util.zip.ZipOutputStream
 
 allprojects { project ->
     afterEvaluate {
-        def remapped = tasks.named('remapJar').get()
+        def remapped = tasks.named('jar').get()
         remapped.setDependsOn([])
         remapped.enabled = false
         remapped.destinationDirectory.set(layout.projectDirectory.dir('fixtures'))
@@ -42,7 +42,7 @@ allprojects { project ->
                     loomVersion: loomArtifact.moduleVersion.id.version,
                     baseVersion: project.property('mod_version'),
                     version: project.version.toString(),
-                    dependencies: ['minecraft', 'modImplementation'].collectMany { name ->
+                    dependencies: ['minecraft', 'implementation'].collectMany { name ->
                         configurations[name].dependencies.collect {
                             [group: it.group, name: it.name, version: it.version]
                         }

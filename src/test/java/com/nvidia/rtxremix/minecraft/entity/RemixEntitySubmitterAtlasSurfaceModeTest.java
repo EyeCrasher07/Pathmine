@@ -5,7 +5,8 @@
 package com.nvidia.rtxremix.minecraft.entity;
 
 import com.nvidia.rtxremix.minecraft.texture.BlockTextureManager;
-import net.minecraft.util.Identifier;
+import com.nvidia.rtxremix.InstanceCategoryBit;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class RemixEntitySubmitterAtlasSurfaceModeTest {
 
     private static final Identifier ENTITY_TEXTURE =
-            Identifier.of("minecraft", "textures/entity/creeper/creeper.png");
+            Identifier.fromNamespaceAndPath("minecraft", "textures/entity/creeper/creeper.png");
 
     @Test
     void aHeldTranslucentBlockKeepsItsTranslucentSurface() {
@@ -81,5 +82,31 @@ class RemixEntitySubmitterAtlasSurfaceModeTest {
                 RemixEntitySubmitter.atlasLayerType(RenderLayerUtils.SurfaceMode.CUTOUT));
         assertEquals(BlockTextureManager.L_CUTOUT,
                 RemixEntitySubmitter.atlasLayerType(RenderLayerUtils.SurfaceMode.OPAQUE));
+    }
+
+    @Test
+    void firstPersonVolumesAndItemCardsUseDistinctMaterials() {
+        assertEquals(RenderLayerUtils.SurfaceMode.VIEW_MODEL_TRANSLUCENT,
+                RemixEntitySubmitter.viewModelSurfaceMode(BlockTextureManager.BLOCK_ATLAS_ID,
+                        RenderLayerUtils.SurfaceMode.TRANSLUCENT, InstanceCategoryBit.VIEW_MODEL, false));
+        assertEquals(RenderLayerUtils.SurfaceMode.VIEW_MODEL_TRANSLUCENT_CARD,
+                RemixEntitySubmitter.viewModelSurfaceMode(BlockTextureManager.BLOCK_ATLAS_ID,
+                        RenderLayerUtils.SurfaceMode.TRANSLUCENT, InstanceCategoryBit.VIEW_MODEL, true));
+    }
+
+    @Test
+    void viewModelCompensationDoesNotChangeWorldItemsClearGlassOrOtherTextures() {
+        assertEquals(RenderLayerUtils.SurfaceMode.TRANSLUCENT,
+                RemixEntitySubmitter.viewModelSurfaceMode(BlockTextureManager.BLOCK_ATLAS_ID,
+                        RenderLayerUtils.SurfaceMode.TRANSLUCENT, 0, true));
+        assertEquals(RenderLayerUtils.SurfaceMode.GLASS,
+                RemixEntitySubmitter.viewModelSurfaceMode(BlockTextureManager.BLOCK_ATLAS_ID,
+                        RenderLayerUtils.SurfaceMode.GLASS, InstanceCategoryBit.VIEW_MODEL, true));
+        assertEquals(RenderLayerUtils.SurfaceMode.TRANSLUCENT,
+                RemixEntitySubmitter.viewModelSurfaceMode(ENTITY_TEXTURE,
+                        RenderLayerUtils.SurfaceMode.TRANSLUCENT, InstanceCategoryBit.VIEW_MODEL, true));
+        assertEquals(RenderLayerUtils.SurfaceMode.CUTOUT,
+                RemixEntitySubmitter.viewModelSurfaceMode(BlockTextureManager.BLOCK_ATLAS_ID,
+                        RenderLayerUtils.SurfaceMode.CUTOUT, InstanceCategoryBit.VIEW_MODEL, true));
     }
 }

@@ -1,7 +1,7 @@
 {
   "key.rtxremix.toggleHeldLights": "Toggle Held Lights",
   "key.rtxremix.toggleRtx": "Toggle RTX Rendering",
-  "category.rtxremix": "Pathmine",
+  "key.category.rtx-remix-renderer.pathmine": "Pathmine",
 
   "block.rtx-remix-renderer.copper_beacon": "Copper Beacon",
   "container.rtx-remix-renderer.copper_beacon": "Copper Beacon Controls",

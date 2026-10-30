@@ -8,7 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 
 /** User-controlled intensity multipliers for the built-in block-light rules. */
 public final class BlockLightIntensityControls {

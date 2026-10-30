@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Recycles the {@code long[]} storage behind the block-state copies a render region snapshot
- * takes. Vanilla snapshots every section of up to nine chunks on the render thread for each
+ * takes. Vanilla snapshots the 27 neighboring sections on the render thread for each
  * rebuild it schedules, and the region lives only until the rebuild task has run, so the
  * arrays are the render thread's largest source of garbage while chunks load. Copies take
  * their array from here while a snapshot is being made ({@link #copying}) and the rebuild

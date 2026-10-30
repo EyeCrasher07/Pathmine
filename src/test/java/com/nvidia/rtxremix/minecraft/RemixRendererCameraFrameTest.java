@@ -6,17 +6,14 @@ package com.nvidia.rtxremix.minecraft;
 
 import com.nvidia.rtxremix.RemixException;
 import com.nvidia.rtxremix.minecraft.weather.RemixWeatherRenderer;
-import net.minecraft.block.enums.CameraSubmersionType;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.Camera;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.lang.reflect.Method;
+import net.minecraft.client.Camera;
+import net.minecraft.world.level.material.FogType;
+import net.minecraft.world.phys.Vec3;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -73,42 +70,40 @@ class RemixRendererCameraFrameTest {
             "70, -1, 720",
             "70, 1280, -1"
     })
-    void rejectedProjectionDiscardsCapturedRainAndSnow(float fieldOfView, int width, int height) {
+    void rejectedProjectionDiscardsCapturedRainAndSnow(float fieldOfView, int width, int height) throws Exception {
         RemixWeatherRenderer weather = new RemixWeatherRenderer();
-        TrackingBuiltBuffer rain = new TrackingBuiltBuffer();
-        TrackingBuiltBuffer snow = new TrackingBuiltBuffer();
-        weather.beginCaptureFrame(null);
-        weather.capture(rain, Identifier.ofVanilla("textures/environment/rain.png"));
-        weather.capture(snow, Identifier.ofVanilla("textures/environment/snow.png"));
-
+        setPendingWeather(weather, 2, 3);
         assertFalse(RemixRenderer.prepareCameraProjection(fieldOfView, width, height, weather));
-
-        assertEquals(1, rain.closeCount);
-        assertEquals(1, snow.closeCount);
         assertDoesNotThrow(() -> weather.render(1, 1));
-        weather.cleanup();
-        assertEquals(1, rain.closeCount);
-        assertEquals(1, snow.closeCount);
+        assertEquals(0, pendingColumns(weather));
     }
 
     @Test
-    void readyProjectionKeepsWeatherUntilALaterProjectionIsRejected() {
+    void readyProjectionKeepsWeatherUntilALaterProjectionIsRejected() throws Exception {
         RemixWeatherRenderer weather = new RemixWeatherRenderer();
-        TrackingBuiltBuffer rain = new TrackingBuiltBuffer();
-        TrackingBuiltBuffer snow = new TrackingBuiltBuffer();
-        weather.beginCaptureFrame(null);
-        weather.capture(rain, Identifier.ofVanilla("textures/environment/rain.png"));
-        weather.capture(snow, Identifier.ofVanilla("textures/environment/snow.png"));
-
+        setPendingWeather(weather, 2, 3);
         assertTrue(RemixRenderer.prepareCameraProjection(76.90074f, 1280, 720, weather));
-        weather.updateCamera(new Camera(), 76.90074f, 1280.0f / 720.0f);
-        assertEquals(0, rain.closeCount);
-        assertEquals(0, snow.closeCount);
-
+        assertEquals(5, pendingColumns(weather));
         assertFalse(RemixRenderer.prepareCameraProjection(0.0f, 1280, 720, weather));
-        assertEquals(1, rain.closeCount);
-        assertEquals(1, snow.closeCount);
+        assertEquals(0, pendingColumns(weather));
         assertDoesNotThrow(() -> weather.render(1, 1));
+    }
+
+    private static void setPendingWeather(RemixWeatherRenderer weather, int rain, int snow) throws Exception {
+        var r = RemixWeatherRenderer.class.getDeclaredField("rainColumns");
+        var s = RemixWeatherRenderer.class.getDeclaredField("snowColumns");
+        r.setAccessible(true);
+        s.setAccessible(true);
+        r.setInt(weather, rain);
+        s.setInt(weather, snow);
+    }
+
+    private static int pendingColumns(RemixWeatherRenderer weather) throws Exception {
+        var r = RemixWeatherRenderer.class.getDeclaredField("rainColumns");
+        var s = RemixWeatherRenderer.class.getDeclaredField("snowColumns");
+        r.setAccessible(true);
+        s.setAccessible(true);
+        return r.getInt(weather) + s.getInt(weather);
     }
 
     @Test
@@ -120,7 +115,7 @@ class RemixRendererCameraFrameTest {
                 new RemixException("camera failed"), new IllegalStateException("camera failed")}) {
             Camera camera = new Camera() {
                 @Override
-                public Vec3d getPos() {
+                public Vec3 position() {
                     throw error;
                 }
             };
@@ -133,31 +128,19 @@ class RemixRendererCameraFrameTest {
     void mediumErrorsStayLocalToTheMediumUpdate() throws Exception {
         RemixRenderer renderer = new RemixRenderer();
         Method update = RemixRenderer.class.getDeclaredMethod(
-                "updateCameraMedium", Camera.class, Vec3d.class, float.class, float.class);
+                "updateCameraMedium", Camera.class, Vec3.class, float.class, float.class);
         update.setAccessible(true);
         for (RuntimeException error : new RuntimeException[] {
                 new RemixException("medium failed"), new IllegalStateException("medium failed")}) {
             Camera camera = new Camera() {
                 @Override
-                public CameraSubmersionType getSubmersionType() {
+                public FogType getFluidInCamera() {
                     throw error;
                 }
             };
 
-            assertDoesNotThrow(() -> update.invoke(renderer, camera, Vec3d.ZERO, 0.0f, 0.0f));
+            assertDoesNotThrow(() -> update.invoke(renderer, camera, Vec3.ZERO, 0.0f, 0.0f));
         }
     }
 
-    private static final class TrackingBuiltBuffer extends BuiltBuffer {
-        private int closeCount;
-
-        private TrackingBuiltBuffer() {
-            super(null, new DrawParameters(null, 4, 6, null, null));
-        }
-
-        @Override
-        public void close() {
-            closeCount++;
-        }
-    }
 }
