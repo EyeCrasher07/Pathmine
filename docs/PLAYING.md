@@ -173,7 +173,7 @@ The native Linux runtime is built with Sentry reporting disabled.
 | `/rtx status` reports `Renderer Initialized: false` | Look for `Failed to initialize Pathmine renderer` in `logs/latest.log` and read the error that follows. If it names a conf file, check that file; an existing file that fails to load is not automatically replaced. Include the logs when reporting the failure. |
 | On a Windows laptop: the game runs but looks like ordinary Minecraft, or is extremely slow | The display is being driven by the built-in graphics chip. In Windows Settings, Display, Graphics, add `javaw.exe` and set it to High performance, then relaunch. |
 | Very choppy at a high render distance | Lower Minecraft's render distance, or pick a lower tier in Options, RTX Remix Settings, RTX Remix Graphics Settings. |
-| The game will not start at all | Launch the Fabric instance containing the Pathmine JAR and Fabric API, and confirm the launcher is set to Java 21. |
+| The game will not start at all | Launch the Fabric instance containing the matching Pathmine JAR and Fabric API, and select Java 25 for Minecraft 26.3 or Java 21 for 1.21.1. |
 | A crash, a black screen, or wrong rendering with other mods installed | Remove the other mods and try again. Mods that change rendering or chunk loading are the likely conflict. If one mod turns out to be the cause, say which in your report. |
 
 If none of that helps, open your instance's game folder in the launcher and
