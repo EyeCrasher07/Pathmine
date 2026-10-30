@@ -1286,6 +1286,7 @@ namespace dxvk {
 
     // NV-DXVK start: Parse native configuration independently of the host locale.
 #ifndef _WIN32
+    const int savedErrno = errno;
     struct NumericLocale {
       locale_t handle = newlocale(LC_NUMERIC_MASK, "C", nullptr);
 
@@ -1296,12 +1297,12 @@ namespace dxvk {
       }
     };
     static const NumericLocale numericLocale;
+    errno = savedErrno;
     if (!numericLocale.handle) {
       return false;
     }
 
     char* end = nullptr;
-    const int savedErrno = errno;
     errno = 0;
     const float parsed = strtof_l(value.c_str(), &end, numericLocale.handle);
     const int parseErrno = errno;
