@@ -137,7 +137,7 @@ $script:PRISM_INSTANCE_NAME  = 'Pathmine'
 $script:PRISM_INSTANCE_LEGACY_NAMES = @(
     'NVIDIA RTX Remix for Minecraft',
     'NVIDIA RTX Remix',
-    'Pathmine 26.3 (Fabric)'
+    'RTX Remix 1.21.1 (Fabric)'
 )
 $script:PRISM_PORTABLE_DIR   = Join-Path $env:LOCALAPPDATA 'RtxRemixMinecraft\PrismLauncher'
 $script:MANAGED_JDK_DIR      = Join-Path $env:LOCALAPPDATA 'RtxRemixMinecraft\jdk-25'
@@ -1630,10 +1630,61 @@ function Disable-PrismUpdateCheck {
     }
 }
 
+function Assert-PrismInstanceCompatible {
+    param([string]$InstanceDir)
+    $guidance = "Create a separate Minecraft $($script:MC_VERSION) Fabric instance and install there; keep this instance and its worlds unchanged."
+    $cfg = Join-Path $InstanceDir 'instance.cfg'
+    $pack = Join-Path $InstanceDir 'mmc-pack.json'
+    try {
+        $text = Read-PrismCfg -Cfg $cfg
+        $manifest = Get-Content -LiteralPath $pack -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        if ((Get-PrismCfgValue -Text $text -Key 'InstanceType') -ne 'OneSix' -or
+            $manifest.formatVersion -ne 1 -or $manifest.components -isnot [array]) {
+            throw 'Invalid Prism instance or component manifest.'
+        }
+        $minecraft = @($manifest.components | Where-Object { $_.uid -ceq 'net.minecraft' })
+        $loader = @($manifest.components | Where-Object { $_.uid -ceq 'net.fabricmc.fabric-loader' })
+        if ($minecraft.Count -ne 1 -or $minecraft[0].version -cne $script:MC_VERSION) {
+            throw "The instance must target Minecraft $($script:MC_VERSION)."
+        }
+        if ($loader.Count -ne 1 -or $loader[0].version -notmatch '^\d+\.\d+\.\d+$' -or
+            [version]$loader[0].version -lt [version]$script:FABRIC_LOADER_VER) {
+            throw "The instance needs Fabric Loader $($script:FABRIC_LOADER_VER) or newer."
+        }
+        $prismDataDir = Split-Path -Parent (Split-Path -Parent $InstanceDir)
+        $globalCfg = Join-Path $prismDataDir 'prismlauncher.cfg'
+        $global = if (Test-Path -LiteralPath $globalCfg) { Read-PrismCfg -Cfg $globalCfg } else { '' }
+        $override = (Get-PrismCfgValue -Text $text -Key 'OverrideJavaLocation') -eq 'true' -or
+                    (Get-PrismCfgValue -Text $text -Key 'OverrideJava') -eq 'true'
+        if (-not $override -and
+            (Get-PrismCfgValue -Text $global -Key 'AutomaticJavaSwitch') -eq 'true' -and
+            (Get-PrismCfgValue -Text $global -Key 'AutomaticJavaDownload') -eq 'true') {
+            return
+        }
+        $javaSettings = if ($override) { $text } else { $global }
+        $javaPath = Get-PrismCfgValue -Text $javaSettings -Key 'JavaPath'
+        if (-not $javaPath) { throw 'Select Java 25 in Prism or enable automatic Java switching and downloads.' }
+        $javaPath = $javaPath.Trim('"') -replace '/', '\'
+        if (-not [System.IO.Path]::IsPathRooted($javaPath)) {
+            throw 'Select an absolute Java 25 path in Prism so its runtime can be verified.'
+        }
+        if ((Split-Path -Leaf $javaPath) -ieq 'javaw.exe') {
+            $javaPath = Join-Path (Split-Path -Parent $javaPath) 'java.exe'
+        }
+        if ((Get-JavaMajor $javaPath) -ne 25 -or -not (Test-JavaArchMatchesHost $javaPath)) {
+            throw 'The selected Prism Java must be Java 25 with the native host architecture.'
+        }
+    } catch {
+        throw "Cannot reuse Prism instance '$InstanceDir': $($_.Exception.Message) $guidance"
+    }
+}
+
 function Initialize-PrismInstance {
     param([string]$InstanceDir)
     $cfg = Join-Path $InstanceDir 'instance.cfg'
-    if (Test-Path -LiteralPath $cfg) {
+    if ((Test-Path -LiteralPath $InstanceDir) -and
+        @(Get-ChildItem -LiteralPath $InstanceDir -Force -ErrorAction Stop).Count -gt 0) {
+        Assert-PrismInstanceCompatible -InstanceDir $InstanceDir
         Write-Info "Reusing existing Prism instance: $($script:PRISM_INSTANCE_NAME)"
         return
     }

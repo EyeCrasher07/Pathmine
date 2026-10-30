@@ -10,6 +10,8 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.NumericTag;
 import net.minecraft.resources.Identifier;
@@ -17,9 +19,16 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.level.storage.SavedDataStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -60,7 +69,7 @@ public final class ZonePersistentState extends SavedData {
             DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
     private final Map<String, ZoneDefinition> zonesByName = new HashMap<>();
-    private final boolean writable;
+    private boolean writable;
 
     ZonePersistentState() {
         this(true);
@@ -80,7 +89,7 @@ public final class ZonePersistentState extends SavedData {
      * object it does not need.</p>
      */
     public static ZonePersistentState getOrCreate(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(TYPE);
+        return getOrCreate(server.overworld().getDataStorage(), server.getWorldPath(LevelResource.ROOT));
     }
 
     /**
@@ -95,7 +104,37 @@ public final class ZonePersistentState extends SavedData {
      * depends on that behavior staying as it is.</p>
      */
     public static ZonePersistentState getIfPresent(MinecraftServer server) {
-        return server.overworld().getDataStorage().get(TYPE);
+        return getIfPresent(server.overworld().getDataStorage(), server.getWorldPath(LevelResource.ROOT));
+    }
+
+    static ZonePersistentState getOrCreate(SavedDataStorage storage, Path worldRoot) {
+        ZonePersistentState state = getIfPresent(storage, worldRoot);
+        return state != null ? state : storage.computeIfAbsent(TYPE);
+    }
+
+    static ZonePersistentState getIfPresent(SavedDataStorage storage, Path worldRoot) {
+        ZonePersistentState state = storage.get(TYPE);
+        if (state != null) return state;
+
+        Path dataDirectory = DimensionType.getStorageFolder(Level.OVERWORLD, worldRoot).resolve(LevelResource.DATA.id());
+        Path target = TYPE.id().withSuffix(".dat").resolveAgainst(dataDirectory);
+        if (!Files.notExists(target)) {
+            throw new IllegalStateException("Cannot load saved zone data at " + target + "; refusing to overwrite it");
+        }
+        Path legacy = worldRoot.resolve("data").resolve(DATA_ID + ".dat");
+        if (Files.notExists(legacy)) return null;
+
+        try {
+            CompoundTag root = NbtIo.readCompressed(legacy, NbtAccounter.unlimitedHeap());
+            CompoundTag data = root.getCompound("data")
+                    .orElseThrow(() -> new IllegalArgumentException("Missing zone data compound"));
+            state = CODEC.parse(NbtOps.INSTANCE, data).getOrThrow();
+            state.requireWritable();
+        } catch (IOException | IllegalArgumentException | IllegalStateException e) {
+            throw new IllegalStateException("Cannot import legacy zone data at " + legacy + "; leaving it unchanged", e);
+        }
+        storage.set(TYPE, state);
+        return state;
     }
 
     /** Immutable, name-sorted copy safe to publish to the client/render registry. */
@@ -152,6 +191,8 @@ public final class ZonePersistentState extends SavedData {
         }
         ZonePersistentState state = new ZonePersistentState();
         if (!(nbt.get(ZONES_KEY) instanceof ListTag zones)) {
+            LOGGER.warn("Ignoring RTX Remix zone state without a zone list");
+            state.writable = false;
             return state;
         }
 
@@ -164,6 +205,7 @@ public final class ZonePersistentState extends SavedData {
                 }
             } catch (IllegalArgumentException e) {
                 LOGGER.warn("Ignoring malformed saved RTX Remix zone at index {}: {}", i, e.getMessage());
+                state.writable = false;
             }
         }
         return state;
@@ -172,7 +214,7 @@ public final class ZonePersistentState extends SavedData {
     private void requireWritable() {
         if (!writable) {
             throw new IllegalStateException(
-                    "saved zone data uses an unsupported schema; refusing to overwrite it");
+                    "saved zone data is malformed or uses an unsupported schema; refusing to overwrite it");
         }
     }
 

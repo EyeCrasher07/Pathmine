@@ -6,9 +6,9 @@ package com.nvidia.rtxremix.minecraft.texture;
 
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 
-/** Mip-zero sprite pixels, accounting for26.3's atlas padding outside its UV rectangle. */
-record AtlasSpriteRegion(int x, int y, int width, int height, int padding) {
-    static AtlasSpriteRegion of(TextureAtlasSprite sprite, int atlasWidth, int atlasHeight) {
+/** Mip-zero sprite pixels inside the atlas's filtering border. */
+public record AtlasSpriteRegion(int x, int y, int width, int height, int padding) {
+    public static AtlasSpriteRegion of(TextureAtlasSprite sprite, int atlasWidth, int atlasHeight) {
         int x = Math.round(sprite.getU0() * atlasWidth);
         int y = Math.round(sprite.getV0() * atlasHeight);
         int padding = x - sprite.getX();
@@ -19,7 +19,7 @@ record AtlasSpriteRegion(int x, int y, int width, int height, int padding) {
     }
 
     /** Extends the edge texels into the same border Minecraft allocates for filtering. */
-    void copyPadding(byte[] pixels, int atlasWidth, int channels) {
+    public void copyPadding(byte[] pixels, int atlasWidth, int channels) {
         if (padding == 0) return;
         for (int row = y - padding; row < y + height + padding; row++) {
             int sourceRow = Math.clamp(row, y, y + height - 1);

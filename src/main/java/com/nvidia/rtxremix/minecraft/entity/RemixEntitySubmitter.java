@@ -6,6 +6,7 @@ package com.nvidia.rtxremix.minecraft.entity;
 
 import net.minecraft.util.ARGB;
 import com.nvidia.rtxremix.minecraft.util.DirectBufferPool;
+import com.nvidia.rtxremix.minecraft.texture.AtlasSpriteRegion;
 import com.nvidia.rtxremix.minecraft.texture.ParticleAtlasManager;
 import com.nvidia.rtxremix.minecraft.texture.LabPBRConverter;
 import com.nvidia.rtxremix.minecraft.texture.DynamicTextureCache;
@@ -2298,61 +2299,16 @@ public class RemixEntitySubmitter {
                 failedTextures.add(textureId);
                 return null;
             }
-            byte[] pixels = BlockTextureManager.stitchAtlasRGBA(atlas);
-            int pixelCount = w * h;
-            byte[] normalData = new byte[pixelCount * 4];
-            byte[] heightData = new byte[pixelCount];
-            byte[] roughData = new byte[pixelCount];
-            byte[] metalData = new byte[pixelCount];
-            byte[] emissiveData = new byte[pixelCount * 4];
-            byte[] sssData = new byte[pixelCount * 4];
-            byte[] sssAlbedoData = LabPBRConverter.createSingleScatteringAlbedoFallback(pixels);
-            Arrays.fill(heightData, (byte) 255);
-            Arrays.fill(roughData, (byte) 180);
-            fillFlatNormals(normalData);
-
-            boolean hasNormal = false;
-            boolean hasSpecular = false;
-            boolean hasEmissive = false;
-            boolean hasSss = false;
+            AtlasPbrData data = new AtlasPbrData(w, h, BlockTextureManager.stitchAtlasRGBA(atlas));
             ResourceManager rm = client.getResourceManager();
             Map<Identifier, TextureAtlasSprite> sprites = ((SpriteAtlasAccessor) atlas).getSprites();
             for (Map.Entry<Identifier, TextureAtlasSprite> entry : sprites.entrySet()) {
                 Identifier spriteId = entry.getKey();
-                TextureAtlasSprite sprite = entry.getValue();
-                int x = sprite.getX();
-                int y = sprite.getY();
-                int spriteW = sprite.contents().width();
-                int spriteH = sprite.contents().height();
                 NativeImage nImg = loadVariant(rm, spriteId, "_n");
                 NativeImage sImg = loadVariant(rm, spriteId, "_s");
                 NativeImage sssImg = loadVariant(rm, spriteId, "_sss");
                 try {
-                    if (nImg != null) {
-                        LabPBRConverter.blitNormal(normalData, w, nImg, x, y, spriteW, spriteH);
-                        LabPBRConverter.blitHeight(heightData, w, nImg, x, y, spriteW, spriteH);
-                        LabPBRConverter.applyAO(pixels, w, nImg, x, y, spriteW, spriteH);
-                        LabPBRConverter.applyAO(sssAlbedoData, w, nImg, x, y, spriteW, spriteH);
-                        hasNormal = true;
-                    }
-                    if (sImg != null) {
-                        LabPBRConverter.blitRoughness(roughData, w, sImg, x, y, spriteW, spriteH);
-                        LabPBRConverter.blitMetallic(metalData, w, sImg, x, y, spriteW, spriteH);
-                        hasSpecular = true;
-                        if (LabPBRConverter.hasEmissiveData(sImg)) {
-                            LabPBRConverter.blitEmissive(emissiveData, w, pixels, sImg,
-                                    x, y, spriteW, spriteH, 0f);
-                            hasEmissive = true;
-                        }
-                        if (LabPBRConverter.hasSSSData(sImg)) {
-                            LabPBRConverter.blitSSS(sssData, w, sImg, x, y, spriteW, spriteH);
-                            hasSss = true;
-                        }
-                    }
-                    if (sssImg != null) {
-                        LabPBRConverter.blitSingleScatteringAlbedo(
-                                sssAlbedoData, w, sssImg, x, y, spriteW, spriteH);
-                    }
+                    data.blit(entry.getValue(), nImg, sImg, sssImg);
                 } finally {
                     if (nImg != null) nImg.close();
                     if (sImg != null) sImg.close();
@@ -2362,36 +2318,36 @@ public class RemixEntitySubmitter {
 
             EntityTextureSet textures = new EntityTextureSet();
             String name = "atlas_" + textureId;
-            textures.albedo = uploadAndOwn(textures, name + "_a", pixels, w, h,
+            textures.albedo = uploadAndOwn(textures, name + "_a", data.pixels, w, h,
                     TextureFormat.RGBA8_UNORM, TexturePurpose.COLOR);
             if (textures.albedo == null) {
                 textures.destroy();
                 failedTextures.add(textureId);
                 return null;
             }
-            if (hasNormal) {
-                textures.normal = uploadAndOwn(textures, name + "_n", normalData, w, h,
+            if (data.hasNormal) {
+                textures.normal = uploadAndOwn(textures, name + "_n", data.normalData, w, h,
                         TextureFormat.RGBA8_UNORM, TexturePurpose.NORMAL_DX);
-                textures.height = uploadAndOwn(textures, name + "_h", heightData, w, h,
+                textures.height = uploadAndOwn(textures, name + "_h", data.heightData, w, h,
                         TextureFormat.R8_UNORM, TexturePurpose.HEIGHTMAP);
             }
-            if (hasSpecular) {
-                textures.roughness = uploadAndOwn(textures, name + "_r", roughData, w, h,
+            if (data.hasSpecular) {
+                textures.roughness = uploadAndOwn(textures, name + "_r", data.roughData, w, h,
                         TextureFormat.R8_UNORM, TexturePurpose.DATA);
-                textures.metallic = uploadAndOwn(textures, name + "_m", metalData, w, h,
+                textures.metallic = uploadAndOwn(textures, name + "_m", data.metalData, w, h,
                         TextureFormat.R8_UNORM, TexturePurpose.DATA);
             }
-            if (hasEmissive) {
-                textures.emissive = uploadAndOwn(textures, name + "_e", emissiveData, w, h,
+            if (data.hasEmissive) {
+                textures.emissive = uploadAndOwn(textures, name + "_e", data.emissiveData, w, h,
                         TextureFormat.RGBA8_UNORM, TexturePurpose.COLOR);
             }
-            if (hasSss) {
-                textures.sssThickness = uploadAndOwn(textures, name + "_sss", sssData, w, h,
+            if (data.hasSss) {
+                textures.sssThickness = uploadAndOwn(textures, name + "_sss", data.sssData, w, h,
                         TextureFormat.RGBA8_UNORM, TexturePurpose.DATA);
-                textures.sssAlbedo = uploadAndOwn(textures, name + "_ssa", sssAlbedoData, w, h,
+                textures.sssAlbedo = uploadAndOwn(textures, name + "_ssa", data.sssAlbedoData, w, h,
                         TextureFormat.RGBA8_UNORM, TexturePurpose.DATA);
             }
-            textures.hasPBR = hasNormal || hasSpecular || hasSss;
+            textures.hasPBR = data.hasNormal || data.hasSpecular || data.hasSss;
             LOGGER.info("Created entity atlas textures for {} ({}x{}, {} sprites, LabPBR={})",
                     textureId, w, h, sprites.size(), textures.hasPBR);
             return textures;
@@ -2399,6 +2355,81 @@ public class RemixEntitySubmitter {
             LOGGER.error("Failed to create atlas textures for {}: {}", textureId, e.getMessage(), e);
             failedTextures.add(textureId);
             return null;
+        }
+    }
+
+    static final class AtlasPbrData {
+        final int width;
+        final int height;
+        final byte[] pixels;
+        final byte[] normalData;
+        final byte[] heightData;
+        final byte[] roughData;
+        final byte[] metalData;
+        final byte[] emissiveData;
+        final byte[] sssData;
+        final byte[] sssAlbedoData;
+        boolean hasNormal;
+        boolean hasSpecular;
+        boolean hasEmissive;
+        boolean hasSss;
+
+        AtlasPbrData(int width, int height, byte[] pixels) {
+            this.width = width;
+            this.height = height;
+            this.pixels = pixels;
+            int pixelCount = width * height;
+            normalData = new byte[pixelCount * 4];
+            heightData = new byte[pixelCount];
+            roughData = new byte[pixelCount];
+            metalData = new byte[pixelCount];
+            emissiveData = new byte[pixelCount * 4];
+            sssData = new byte[pixelCount * 4];
+            sssAlbedoData = LabPBRConverter.createSingleScatteringAlbedoFallback(pixels);
+            Arrays.fill(heightData, (byte) 255);
+            Arrays.fill(roughData, (byte) 180);
+            fillFlatNormals(normalData);
+        }
+
+        void blit(TextureAtlasSprite sprite, NativeImage nImg, NativeImage sImg, NativeImage sssImg) {
+            AtlasSpriteRegion region = AtlasSpriteRegion.of(sprite, width, height);
+            int x = region.x();
+            int y = region.y();
+            int spriteW = region.width();
+            int spriteH = region.height();
+            if (nImg != null) {
+                LabPBRConverter.blitNormal(normalData, width, nImg, x, y, spriteW, spriteH);
+                LabPBRConverter.blitHeight(heightData, width, nImg, x, y, spriteW, spriteH);
+                LabPBRConverter.applyAO(pixels, width, nImg, x, y, spriteW, spriteH);
+                LabPBRConverter.applyAO(sssAlbedoData, width, nImg, x, y, spriteW, spriteH);
+                hasNormal = true;
+            }
+            if (sImg != null) {
+                LabPBRConverter.blitRoughness(roughData, width, sImg, x, y, spriteW, spriteH);
+                LabPBRConverter.blitMetallic(metalData, width, sImg, x, y, spriteW, spriteH);
+                hasSpecular = true;
+                if (LabPBRConverter.hasEmissiveData(sImg)) {
+                    LabPBRConverter.blitEmissive(emissiveData, width, pixels, sImg,
+                            x, y, spriteW, spriteH, 0f);
+                    hasEmissive = true;
+                }
+                if (LabPBRConverter.hasSSSData(sImg)) {
+                    LabPBRConverter.blitSSS(sssData, width, sImg, x, y, spriteW, spriteH);
+                    hasSss = true;
+                }
+            }
+            if (sssImg != null) {
+                LabPBRConverter.blitSingleScatteringAlbedo(
+                        sssAlbedoData, width, sssImg, x, y, spriteW, spriteH);
+            }
+            region.copyPadding(pixels, width, 4);
+            region.copyPadding(normalData, width, 4);
+            region.copyPadding(heightData, width, 1);
+            region.copyPadding(roughData, width, 1);
+            region.copyPadding(metalData, width, 1);
+            region.copyPadding(emissiveData, width, 4);
+            region.copyPadding(sssData, width, 4);
+            region.copyPadding(sssAlbedoData, width, 4);
         }
     }
 

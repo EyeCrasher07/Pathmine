@@ -225,6 +225,10 @@ following:
 When changing Minecraft versions, use a separate instance and back up the world
 before opening it. A world upgraded to 26.3 should not be opened again in 1.21.1.
 Use the release's matching Java, Fabric Loader, and Fabric API requirements.
+The Windows installer refuses to replace files in an incompatible Prism instance.
+When upgrading a copy of an older world, saved RTX zones are imported into the
+current save format while the original zone file is preserved. Existing current
+zone data takes precedence; unreadable data is not replaced with an empty state.
 
 Stop the game, download the updated preview JAR for your operating system
 through [Install](../README.md#install), and replace the old Pathmine JAR in
