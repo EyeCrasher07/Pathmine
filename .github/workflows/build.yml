@@ -42,7 +42,9 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install platform build dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build clang libvulkan-dev
+        run: |
+          sudo apt-get update && sudo apt-get install -y cmake ninja-build clang libvulkan-dev locales
+          sudo localedef -i ru_RU -f UTF-8 ru_RU.UTF-8
       - name: Configure native platform and pinned header dependencies
         run: >-
           cmake -S runtime/native -B runtime/_NativePlatform -G Ninja
@@ -53,4 +55,4 @@ jobs:
       - name: Test CPU platform services
         run: >-
           ctest --test-dir runtime/_NativePlatform --output-on-failure
-          -R '^native-(runtime-distribution-checker|shader-dependencies|api016-header|api-header|shared-library|platform-services|mapped-file|directory-watch|keybind|math)$'
+          -R '^native-(runtime-distribution-checker|shader-dependencies|api016-header|api-header|shared-library|platform-services|numeric-config|mapped-file|directory-watch|keybind|math)$'

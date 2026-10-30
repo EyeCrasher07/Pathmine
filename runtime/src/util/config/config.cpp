@@ -27,6 +27,13 @@
 #include <utility>
 #include <filesystem>
 #include <algorithm>
+// NV-DXVK start: Native numeric configuration uses the file format's C locale.
+#ifndef _WIN32
+#include <cerrno>
+#include <cstdlib>
+#include <locale.h>
+#endif
+// NV-DXVK end
 
 #include "config.h"
 
@@ -1277,7 +1284,34 @@ namespace dxvk {
     if (value.size() == 0)
       return false;
 
-    // NV-DXVK start: handle invalid inputs
+    // NV-DXVK start: Parse native configuration independently of the host locale.
+#ifndef _WIN32
+    struct NumericLocale {
+      locale_t handle = newlocale(LC_NUMERIC_MASK, "C", nullptr);
+
+      ~NumericLocale() {
+        if (handle) {
+          freelocale(handle);
+        }
+      }
+    };
+    static const NumericLocale numericLocale;
+    if (!numericLocale.handle) {
+      return false;
+    }
+
+    char* end = nullptr;
+    const int savedErrno = errno;
+    errno = 0;
+    const float parsed = strtof_l(value.c_str(), &end, numericLocale.handle);
+    const int parseErrno = errno;
+    errno = savedErrno;
+    if (end == value.c_str() || parseErrno == ERANGE) {
+      return false;
+    }
+    result = parsed;
+    return true;
+#else
     try {
       result = std::stof(value);
       return true;
@@ -1285,6 +1319,7 @@ namespace dxvk {
     catch (...) {
       return false;
     }
+#endif
     // NV-DXVK end
   }
 
