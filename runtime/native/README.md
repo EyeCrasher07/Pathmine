@@ -101,7 +101,10 @@ ctest --test-dir _NativePlatform --output-on-failure
 `remix-vulkan-native`, `remix-util-native` and `remix-core-native` compile the
 original Vulkan loader, platform/configuration services, format/extension code
 and `RtxSemaphore`. Tests cover C API layout, ELF loading, UTF-8 paths and config
-files, key identifiers, GPU semaphore FD exchange and native NRD dispatch data.
+files, numeric scalar and vector parsing under C and comma-decimal locales,
+key identifiers, GPU semaphore FD exchange and native NRD dispatch data. The
+numeric-config test requires `ru_RU.UTF-8` to be generated before running CTest;
+the CI workflow generates it as part of native test setup.
 The NRD test validates shader/dispatch descriptions; it does not execute a
 complete denoising frame. It checks runtime-compatible storage-image formats
 across all 19 supported denoisers, including float and integer clears.
