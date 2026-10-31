@@ -713,6 +713,11 @@ struct DrawCallState {
     return skinningData;
   }
 
+  // Refreshes cached bone matrices only. Geometry, material and hash fields must stay stable for pairing.
+  SkinningData& getSkinningStateMutable() {
+    return skinningData;
+  }
+
   const FogState& getFogState() const {
     return fogState;
   }

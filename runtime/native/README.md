@@ -113,6 +113,20 @@ The renderer build also tests native OpenUSD geometry/material file exchange
 and GPU quality selection. On the RTX 2060, the NVML test verifies the Turing
 architecture, original low-memory defaults and rejection of an unmatched UUID.
 
+The buffer-table tests also build independently on Linux and Windows with a
+C++17 compiler. They execute retained-slot reuse, changed-slot delivery to every
+frame in flight, descriptor writes and replaced-buffer lifetime checks:
+
+```sh
+cmake -S tests/rtx/unit -B _BufferTests
+cmake --build _BufferTests --config Release --parallel 2
+ctest --test-dir _BufferTests --build-config Release --output-on-failure
+```
+
+These CPU tests exercise the shared source. Windows mod packages still use the
+runtime revision pinned in `packman/remix-sdk.packman.xml`; they do not acquire
+native runtime backports merely by rebuilding the Java mod or JNI bridge.
+
 ## Renderer component build
 
 Clang is required for the original runtime's MSVC aggregate extensions.

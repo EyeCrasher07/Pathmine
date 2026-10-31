@@ -54,7 +54,8 @@ namespace {
     return info;
   }
 
-  api::remixapi_MeshHandle triangle(ApiMeshes& meshes, api::remixapi_MaterialHandle material, bool skin = false, uint32_t vertexCount = 3) {
+  api::remixapi_MeshHandle triangle(ApiMeshes& meshes, api::remixapi_MaterialHandle material,
+      bool skin = false, uint32_t vertexCount = 3, uint32_t firstBone = 0) {
     std::vector<api::remixapi_HardcodedVertex> vertices(vertexCount);
     const float positions[3][3] = { { -1.3f, -1, 3 }, { 1.3f, -1, 3 }, { 0, 1, 3 } };
     for (size_t i = 0; i < vertices.size(); ++i) {
@@ -74,8 +75,8 @@ namespace {
     for (uint32_t i = 0; i < vertexCount; ++i) {
       weights[i * 2] = pattern[i % 3];
       weights[i * 2 + 1] = 1 - weights[i * 2];
-      bones[i * 2] = 0;
-      bones[i * 2 + 1] = 1;
+      bones[i * 2] = firstBone;
+      bones[i * 2 + 1] = firstBone + 1;
     }
     if (skin) {
       surface.skinning_hasvalue = 1;
@@ -330,6 +331,49 @@ namespace {
     std::cout << "PASS retained identity, 72 unchanged frames, updates, coincident objects, cache reset, mesh destruction and stale generations\n";
   }
 
+  void checkCachedBones(RuntimeHost& host, ApiInstances& instances, ApiMeshes& meshes,
+      Frames& frames, api::remixapi_MaterialHandle material) {
+    const auto mesh = triangle(meshes, material, true, 270, 1);
+    auto info = instanceInfo(mesh);
+    std::array<api::remixapi_Transform, 3> matrices { transform(.1f), transform(.2f), transform(.8f) };
+    api::remixapi_InstanceInfoBoneTransformsEXT bones { };
+    bones.sType = api::REMIXAPI_STRUCT_TYPE_INSTANCE_INFO_BONE_TRANSFORMS_EXT;
+    bones.boneTransforms_values = matrices.data();
+    bones.boneTransforms_count = matrices.size();
+    info.pNext = &bones;
+    const auto handle = instances.add(info);
+    frames.step(2);
+    dxvk::DrawCallState draw = onlyInstance(host)->getBlas()->input;
+    instances.remove(handle);
+    frames.step(2);
+
+    auto& scene = host.context()->getSceneManager();
+    scene.clear(host.context(), true);
+    auto& firstSkin = draw.modifySkinningState();
+    firstSkin.minBoneIndex = 1;
+    firstSkin.computeHash();
+    frames.begin();
+    scene.submitDrawState(host.context(), draw, nullptr);
+    auto* pBlas = onlyInstance(host)->getBlas();
+    require(pBlas->input.getSkinningState().minBoneIndex == 1,
+      "skinned draw did not enter the original draw-call cache");
+
+    auto next = draw;
+    auto& nextSkin = next.modifySkinningState();
+    nextSkin.pBoneMatrices[0][3].x = .7f;
+    nextSkin.computeHash();
+    require(nextSkin.boneHash == firstSkin.boneHash,
+      "unused root bone changed the active-bone hash");
+    scene.submitDrawState(host.context(), next, nullptr);
+    require(onlyInstance(host)->getBlas() == pBlas
+        && pBlas->input.getSkinningState().pBoneMatrices[0][3].x == .7f,
+      "same-frame skinned draw kept stale cached root-bone matrices");
+    frames.end();
+    scene.clear(host.context(), true);
+    meshes.destroy(mesh);
+    std::cout << "PASS repeated skinned draws refresh cached bones without changing mesh identity\n";
+  }
+
   void checkExtensions(RuntimeHost& host, ApiInstances& instances, ApiMeshes& meshes,
       Frames& frames, api::remixapi_MaterialHandle material) {
     for (const uint32_t vertexCount : { 3u, 270u }) {
@@ -512,6 +556,7 @@ int main() {
     const auto blueMaterial = materials.create(blue.info);
     checkRetained(host, instances, meshes, materials, frames, redMaterial, blueMaterial);
     checkExtensions(host, instances, meshes, frames, blueMaterial);
+    checkCachedBones(host, instances, meshes, frames, blueMaterial);
     checkTransient(host, instances, meshes, frames, blueMaterial);
     checkTransientHistory(host, instances, meshes, frames, blueMaterial);
     const auto shutdownMesh = triangle(meshes, blueMaterial);
