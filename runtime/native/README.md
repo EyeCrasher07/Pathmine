@@ -113,15 +113,33 @@ The renderer build also tests native OpenUSD geometry/material file exchange
 and GPU quality selection. On the RTX 2060, the NVML test verifies the Turing
 architecture, original low-memory defaults and rejection of an unmatched UUID.
 
-The buffer-table tests also build independently on Linux and Windows with a
-C++17 compiler. They execute retained-slot reuse, changed-slot delivery to every
-frame in flight, descriptor writes and replaced-buffer lifetime checks:
+## Portable buffer-table tests
+
+The buffer-table tests build independently on Linux and Windows with CMake and a
+C++17 compiler, without renderer dependencies or a GPU. They execute retained-slot
+reuse, changed-slot delivery to every frame in flight, descriptor writes and
+replaced-buffer lifetime checks:
 
 ```sh
 cmake -S tests/rtx/unit -B _BufferTests
 cmake --build _BufferTests --config Release --parallel 2
 ctest --test-dir _BufferTests --build-config Release --output-on-failure
 ```
+
+The [build workflow](../../.github/workflows/build.yml) builds and runs these tests
+on Linux and with MSVC on Windows. Its `pathmine-buffer-tests-windows-x64` artifact
+contains Release executables linked with the static CRT, the MIT and xxHash
+license texts, and `SHA256SUMS.txt`. To run without a build toolchain, download
+the artifact from the workflow run for the revision being checked, extract it
+with its licenses, and run the following in PowerShell from the extracted folder:
+
+```powershell
+.\test_retained_buffer_table.exe
+.\test_pending_slot_queues.exe
+.\test_bindless_buffer_mirror.exe
+```
+
+Each executable must print `All passed` and return exit code 0 (`$LASTEXITCODE`).
 
 These CPU tests exercise the shared source. Windows mod packages still use the
 runtime revision pinned in `packman/remix-sdk.packman.xml`; they do not acquire
@@ -417,8 +435,11 @@ mesh replacement and cache resets update or recover the original scene data.
 Transient API draws expire after a missed frame. External skinning records before
 BLAS construction on the frame context; the legacy D3D9 path keeps its own context.
 `native-api016-instances` checks 72 unchanged frames, updates/removal/recovery,
-generation safety, CPU/GPU skinning readback, GPU instancing and active-scene
-shutdown. Empty scenes discard stale surface records and publish cleared output.
+generation safety, CPU/GPU skinning readback, repeated same-frame cached-bone
+refresh, GPU instancing and active-scene shutdown. The cached-bone regression
+changes a root matrix outside the active-bone hash range and requires the reused
+BLAS entry to receive it without changing mesh identity. Empty scenes discard
+stale surface records and publish cleared output.
 
 `ApiLights` submits the original sphere, rectangle, disk, cylinder and distant
 light classes, including spot shaping, volumetric scaling and USD parameters.
@@ -456,9 +477,6 @@ hazards. Passing these synthetic GPU tests does not establish Minecraft stabilit
 
 ## Remaining validation
 
-Minecraft 1.21.1 now loads the packaged native runtime and renders a saved
-Windows comparison world on the RTX 2060. The original Remix menus and their
-mouse controls have been verified interactively. Visual parity, long-session
-resource lifetimes, fullscreen transitions and the remaining private-runtime
-material/atlas behavior still need comparison. The original Windows release is
-the reference; the changed Windows build has not been verified.
+For packaged Minecraft evidence and outstanding gameplay, parity and stability
+checks, see [Native Linux runtime port](../../docs/NATIVE_LINUX_PORT.md).
+Native test results remain separate from packaged-game verification.
