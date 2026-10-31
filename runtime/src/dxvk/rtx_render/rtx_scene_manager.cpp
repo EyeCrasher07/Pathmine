@@ -265,6 +265,7 @@ namespace dxvk {
     verifyAndReleaseBufferCache();
 
     // We still need to clear caches even if the scene wasn't rendered
+    m_bindlessResourceManager.releaseBufferDescriptors(ctx, needWfi);
     m_bufferCache.clear();
     m_preCreationSurfaceMaterialMap.clear();
     m_volumeMaterialCache.clear();
@@ -1332,6 +1333,13 @@ namespace dxvk {
   SceneManager::ObjectCacheState SceneManager::onSceneObjectUpdated(Rc<DxvkContext> ctx, const DrawCallState& drawCallState, BlasEntry* pBlas) {
     if (pBlas->frameLastTouched == m_device->getCurrentFrameId()) {
       pBlas->cacheMaterial(drawCallState.getMaterialData());
+      // Refresh the cached bone matrices for a mesh drawn repeatedly in one frame.
+      // An entry is only reused here when boneHash matches, and that hash covers just
+      // [minBoneIndex, numBones), so this updates the matrices below that range.
+      if (pBlas->input.getSkinningStateMutable().numBones > 0 &&
+          drawCallState.getSkinningState().numBones == pBlas->input.getSkinningState().numBones) {
+        pBlas->input.getSkinningStateMutable().pBoneMatrices = drawCallState.getSkinningState().pBoneMatrices;
+      }
       return SceneManager::ObjectCacheState::kUpdateInstance;
     }
 
@@ -2241,7 +2249,11 @@ namespace dxvk {
 
     m_lightManager.prepareDomeLights(ctx);
     auto& textureManager = m_device->getCommon()->getTextureManager();
-    m_bindlessResourceManager.prepareSceneData(ctx, textureManager.getTextureTable(), getBufferTable(), getSamplerTable());
+    if (m_bindlessResourceManager.prepareSceneData(
+          ctx, textureManager.getTextureTable(), getBufferTable(),
+          m_bufferCache.getUpdatedSlots(), getSamplerTable())) {
+      m_bufferCache.clearUpdatedSlots();
+    }
 
     // If there are no instances, we should do nothing!
     if (m_instanceManager.getActiveCount() == 0) {

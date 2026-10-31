@@ -1,12 +1,11 @@
 # RTX Remix Unit Test
 
 Remix Unit Tests serve the purpose of evaluating the smallest functional components of operators or algorithms within Remix.
-These tests currently focus on the important SSE operations and math algorithms used in Remix.
 
 ## Guidelines for Introducing Unit Tests
 
-1. Add your test code to the folder (tests/rtx/unit). Don't forget to also include the new file in the project's build script, which is [tests/rtx/unit/meson.build].
-2. Write straightforward code that directly invokes the functions being tested. Check result for each test, and if all tests yield the intended outcomes, the main function should return 0. In cases where any test fails, return -1.
+1. Add your test code to `tests/rtx/unit` and register it in [Meson](../tests/rtx/unit/meson.build). Shared buffer-table tests also need registration in the standalone [CMake build](../tests/rtx/unit/CMakeLists.txt).
+2. Write straightforward code that directly invokes the functions being tested. Check result for each test, and if all tests yield the intended outcomes, the main function should return 0. In cases where any test fails, return a nonzero exit code.
 
 ## Requirements
 
@@ -16,7 +15,10 @@ These tests currently focus on the important SSE operations and math algorithms 
 
 ## Running Locally
 
-1. Open a powershell window in `dxvk-remix-nv/` and run `.\build_dxvk.ps1 -BuildFlavour release -BuildSubDir _CompUnitTest_x64 -Backend ninja -EnableTracy false -BuildTarget unit_tests -InstallTags unit`
-2. Then change directory into `_CompUnitTest_x64/` and run `meson test --verbose <test_name>`.  Leave off the test name to run all tests.
+For the standalone buffer-table tests on Linux and Windows, including portable
+Windows executables from CI, follow the [native test guide](../native/README.md#portable-buffer-table-tests).
 
-Note: If the above steps don't work, check `tools/ci/gitlab/unit_test.yml` to see if the commands have changed.
+The full Windows unit suite uses Meson:
+
+1. Open a PowerShell window in `runtime/` and run `.\build_dxvk.ps1 -BuildFlavour release -BuildSubDir _CompUnitTest_x64 -Backend ninja -EnableTracy false -BuildTarget unit_tests -InstallTags unit`
+2. Then change directory into `_CompUnitTest_x64/` and run `meson test --verbose <test_name>`.  Leave off the test name to run all tests.

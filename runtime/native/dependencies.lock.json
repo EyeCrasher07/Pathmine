@@ -21,6 +21,14 @@
         "revision": "54b144a0b1925949a8a81ad81bddb8c4ee68a09e",
         "subject": "Keep HL2RTX startup responsive",
         "scope": "NGX worker initialization, capability publication, deferred DLSS resolution and first-camera setup. Adapted for native shared depth. Geometry-worker and USD thread-limit changes are not included."
+      },
+      {
+        "revision": "59e78479da8d857c156bb2021b3f6795da8053d2",
+        "subject": "Fix frozen poses and crowd motion-vector artifacts in skinned meshes"
+      },
+      {
+        "revision": "89257d282e74889264c6caa1c96997b2cf133951",
+        "subject": "[REMIX-6230] Incremental bindless buffer-descriptor updates"
       }
     ]
   },
