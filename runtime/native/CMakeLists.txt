@@ -118,6 +118,7 @@ include(runtime_components.cmake)
 
 include(CTest)
 if(BUILD_TESTING)
+  add_subdirectory(../tests/rtx/unit buffer-tests)
   find_package(Python3 QUIET COMPONENTS Interpreter)
   if(Python3_Interpreter_FOUND)
     add_test(NAME native-runtime-distribution-checker
